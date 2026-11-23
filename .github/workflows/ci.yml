@@ -1,0 +1,59 @@
+# Creado con Claude.
+# CI (§19): ruff y pruebas rápidas en los 3 sistemas; pruebas lentas y de rendimiento en Windows.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rapidas:
+    name: Rápidas (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_QPA_PLATFORM: ${{ matrix.os == 'ubuntu-latest' && 'offscreen' || '' }}
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Bibliotecas de sistema para Qt (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - name: Instalar
+        run: uv sync --locked
+      - name: Ruff
+        run: uv run ruff check src pruebas
+      - name: Pruebas rápidas
+        run: uv run pytest -m "not lento and not rendimiento"
+
+  lentas:
+    name: Lentas y rendimiento (Windows)
+    needs: rapidas
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Instalar
+        run: uv sync --locked
+      - name: Pruebas lentas y de rendimiento
+        shell: bash
+        # El código 5 de pytest significa «no se recolectó ninguna prueba» (aún no existen).
+        run: |
+          set +e
+          uv run pytest -m "lento or rendimiento"
+          codigo=$?
+          if [ "$codigo" -eq 5 ]; then echo "Sin pruebas lentas todavía"; exit 0; fi
+          exit $codigo
+      - name: Publicar tiempos de rendimiento
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendimiento
+          path: rendimiento.json
+          if-no-files-found: ignore

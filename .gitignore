@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+build/
+dist/
+*.spec
+*.egg-info/
+.DS_Store
+# Proyectos y respaldos locales
+*.horario
+!pruebas/datos/*.horario
+*.horario.lock
+.respaldos/
+rendimiento.json
