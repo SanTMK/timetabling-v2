@@ -13,12 +13,15 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 |---|---|
 | F0 Esqueleto | ✔ `uv`, `pyproject`, `ruff`, `pytest`, red bloqueada en pruebas, prueba de cabeceras, CI |
 | F1 Dominio y persistencia | ✔ Entidades (§5), archivo SQLite con migraciones, borrados, respaldos y bloqueo (§6), ejemplos |
-| F2–F12 | Pendientes |
+| F2 Tiempo y validación | ✔ Franjas, recesos, eventos, bloqueos, traslapes, cliques, rejilla Δ, disponibilidad (§7); validación global (§10) |
+| F3–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling --version` muestra la versión.
 - `timetabling ejemplo P.horario [--tamano pequeno|mediano] [--sobrescribir]` crea un proyecto
   de ejemplo.
+- `timetabling validar P.horario` lista errores y advertencias con su acción sugerida
+  (código de salida 1 si hay errores).
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
   `P.horario.lock` y, si la carpeta está sincronizada (OneDrive, Dropbox…), un aviso.
 - La suite de pruebas bloquea la red en ejecución y verifica las cabeceras «Creado con Claude.».
@@ -39,6 +42,10 @@ uv run timetabling --version
 
 ```bash
 uv run timetabling ejemplo mediano.horario --tamano mediano
+```
+
+```bash
+uv run timetabling validar mediano.horario
 ```
 
 ```bash

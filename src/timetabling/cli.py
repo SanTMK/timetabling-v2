@@ -72,6 +72,34 @@ def ejemplo(
     typer.echo(f"Proyecto de ejemplo ({tamano.value}) creado en «{ruta}».")
 
 
+@app.command()
+def validar(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario que se validará.")],
+) -> None:
+    """Revisa los datos del proyecto (§10). Termina con código 1 si hay errores."""
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.servicios.proyecto import validar_proyecto
+
+    try:
+        problemas = validar_proyecto(proyecto)
+    except (ErrorProyecto, FileNotFoundError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    errores = [p for p in problemas if p.es_error]
+    advertencias = [p for p in problemas if not p.es_error]
+    for problema in problemas:
+        marca = "✖ Error" if problema.es_error else "⚠ Advertencia"
+        typer.echo(f"{marca}: {problema.mensaje}")
+        typer.echo(f"    → {problema.accion}")
+    e, a = len(errores), len(advertencias)
+    typer.echo(
+        f"{e} {'error' if e == 1 else 'errores'}, "
+        f"{a} {'advertencia' if a == 1 else 'advertencias'}."
+    )
+    if errores:
+        raise typer.Exit(1)
+
+
 def principal() -> None:
     """Punto de entrada del ejecutable `timetabling`."""
     app()

@@ -52,7 +52,7 @@ jobs:
           exit $codigo
       - name: Publicar tiempos de rendimiento
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: rendimiento
           path: rendimiento.json

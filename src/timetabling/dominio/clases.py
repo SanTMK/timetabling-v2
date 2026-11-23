@@ -7,7 +7,7 @@ huérfanas y textos de destinatarios.
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from timetabling.dominio.modelos import Clase, DatosEscuela, Destinatario, por_id
+from timetabling.dominio.modelos import Clase, DatosEscuela, Destinatario, Profesor, por_id
 
 
 @dataclass(frozen=True)
@@ -146,3 +146,28 @@ def sincronizar_con_plan(datos: DatosEscuela) -> ResultadoSincronizacion:
         diferencias=cobertura_del_plan(datos, todas),
         huerfanas=clases_huerfanas(datos, todas),
     )
+
+
+def profesor_habilitado(datos: DatosEscuela, profesor: Profesor, clase: Clase) -> bool:
+    """Activo y habilitado para la asignatura y para el grado de cada destinatario (§8)."""
+    if not profesor.activo or clase.asignatura_id not in profesor.asignaturas:
+        return False
+    grupos = por_id(datos.grupos)
+    return all(
+        d.grupo_id in grupos and grupos[d.grupo_id].grado_id in profesor.grados
+        for d in clase.destinatarios
+    )
+
+
+def profesores_posibles(datos: DatosEscuela, clase: Clase) -> list[int]:
+    """Profesores que pueden impartir la clase: sus fijos (si están activos y habilitados) o,
+    si no tiene, todos los habilitados."""
+    profesores = por_id(datos.profesores)
+    if clase.profesores:
+        fijos = [profesores.get(p) for p in clase.profesores]
+        if all(p is not None and profesor_habilitado(datos, p, clase) for p in fijos):
+            return list(clase.profesores)
+        return []
+    return [
+        p.id for p in datos.profesores if p.id is not None and profesor_habilitado(datos, p, clase)
+    ]

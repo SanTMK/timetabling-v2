@@ -141,3 +141,44 @@ Formato: fecha · contexto · decisión · alternativa descartada.
     9°C+9°D. División: Inglés por nivel en 8°A y 8°B. Bloqueo: 6°B los viernes de 13:00 a 13:50.
     Profesora multinivel con disponibilidad parcial: Sara Kim (inglés de preescolar y 1°–3°,
     de 08:00 a 12:30). Espacios: cancha (2) y taller (1).
+
+## F2 Tiempo y validación
+
+### 2026-11-23 · Interpretación de D2 con divisiones
+- **Contexto:** D2 dice que «las partes de una misma división pueden coincidir».
+- **Decisión:** pueden coincidir partes **distintas** de una división **simultánea**. La misma
+  parte no puede estar en dos clases a la vez, y las partes de una división no simultánea no se
+  empalman. Para las horas del grupo (§10) se cuenta: grupo completo + por cada división
+  simultánea el máximo de sus partes (o la suma si no es simultánea).
+  `validacion.chocan_destinatarios()` implementa la regla.
+- **Descartada:** dejar que dos clases de la misma parte coincidan (los alumnos estarían en dos
+  lugares).
+
+### 2026-11-23 · Rangos de franjas por hora
+- **Decisión:** una franja **prohibida** por horas basta con que toque el rango; una franja
+  **preferida** por horas debe quedar completa dentro del rango («Matemáticas antes de las
+  11:00»). Por índices se usa `desde ≤ índice ≤ hasta` (inclusive, desde 0).
+- **Descartada:** el mismo criterio para ambos (sería demasiado laxo o demasiado estricto).
+
+### 2026-11-23 · Rejilla Δ
+- **Decisión:** Δ = mcd de los límites de todas las franjas generadas, los recesos, el margen de
+  traslado y el descanso mínimo; si sale menor que 5 se usa 5, y una franja cubre todo tick que
+  toque. `max_minutos_continuos` no entra en el mcd (D8 lo redondea hacia abajo en ticks).
+
+### 2026-11-23 · Disponibilidad «preferible no» sin toda la jornada
+- **Decisión:** sin `disponible_toda_la_jornada`, los rangos `preferible_no` también permiten
+  dar clase (con penalización B4); se fusionan con los `disponible`.
+
+### 2026-11-23 · Minutos de una clase para cargas y capacidad
+- **Decisión:** en la validación, los minutos de una clase son `horas × duracion_min` del nivel
+  (sin duraciones especiales, que dependen de dónde caiga la clase). La capacidad de un profesor
+  en un nivel es `min(carga máxima, minutos de franjas útiles válidas para él)`; un profesor
+  habilitado en varias asignaturas cuenta completo en cada una (condición necesaria, §22).
+
+### 2026-11-23 · Revisión adicional de destinatarios
+- **Decisión:** además de §10, es error que una clase use una división de otro grupo o una parte
+  que no existe en la división.
+
+### 2026-11-23 · Capa de servicios y código de salida de `validar`
+- **Decisión:** `servicios/proyecto.py` carga y valida; la CLI solo presenta. `timetabling
+  validar` termina con 0 sin errores, 1 con errores y 2 si el archivo no se pudo abrir.
