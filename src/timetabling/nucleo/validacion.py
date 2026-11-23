@@ -11,6 +11,7 @@ from itertools import combinations
 from typing import Literal
 
 from timetabling.dominio.clases import (
+    chocan_destinatarios,
     clases_huerfanas,
     cobertura_del_plan,
     grupos_de_clase,
@@ -66,22 +67,6 @@ def _horas(n: int) -> str:
 
 def _plural(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
-
-
-def chocan_destinatarios(
-    a: Destinatario, b: Destinatario, simultaneas: set[int] | None = None
-) -> bool:
-    """Dos destinatarios del mismo grupo no pueden tener clase a la vez (D2), salvo que sean
-    partes **distintas** de una misma división simultánea."""
-    if a.grupo_id != b.grupo_id:
-        return False
-    if a.division_id is None or b.division_id is None:
-        return True
-    if a.division_id != b.division_id:
-        return True
-    if simultaneas is not None and a.division_id not in simultaneas:
-        return True
-    return a.parte == b.parte
 
 
 class _Validador:

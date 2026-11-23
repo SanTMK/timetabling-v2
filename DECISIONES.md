@@ -182,3 +182,50 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-23 · Capa de servicios y código de salida de `validar`
 - **Decisión:** `servicios/proyecto.py` carga y valida; la CLI solo presenta. `timetabling
   validar` termina con 0 sin errores, 1 con errores y 2 si el archivo no se pudo abrir.
+
+## F3 Modelo duro y verificador
+
+### 2026-11-23 · `Colocacion` y `Borrador` mínimos desde F3
+- **Contexto:** `conflictos.motivos(datos, borrador, …)` necesita un horario editable, que §12 y
+  F8 completan.
+- **Decisión:** `dominio/borrador.py` define ya `Colocacion(clase_id, franja_id, profesores,
+  bloqueada)` y un `Borrador` con lo básico; F8 agrega intercambio, deshacer y lo demás. El
+  resolutor, el verificador y los conflictos trabajan con colocaciones; la conversión a
+  `Solucion` (franjas guardadas y copias desnormalizadas) se hace en servicios (F4/F7).
+
+### 2026-11-23 · `Conflictos` como índice incremental
+- **Decisión:** `nucleo/conflictos.py` expone la clase `Conflictos` (índices por grupo, profesor,
+  asignatura y tipo de espacio, con `agregar`/`quitar`) y `motivos()` como atajo. El verificador
+  agrega las colocaciones una por una y revisa cada una contra las anteriores, así cada
+  violación se informa una sola vez. Medido en el mediano: 0,04 ms por celda.
+- Sin profesor indicado, `motivos()` usa el que ya imparte la clase; si no hay, el único
+  candidato; si hay varios, el candidato libre con menos motivos, o informa «Ningún profesor
+  posible está libre» con los primeros motivos de cada uno.
+
+### 2026-11-23 · D8 exacto en minutos
+- **Decisión:** `max_minutos_continuos` de los profesores activos entra al mcd de Δ. El modelo
+  y el verificador revisan las mismas ventanas de `M + P` minutos: las que empiezan al inicio de
+  una franja y las que terminan al final de una (el máximo siempre se alcanza en una de ellas).
+  El modelo usa una variable entera `o[p,s]` por profesor y franja para no repetir sumas.
+- **Familia:** D8 se registra en la familia `carga` (con D7); `continuidad` es D6.
+
+### 2026-11-23 · Un solo candidato = profesor fijo
+- **Decisión:** si una clase sin profesores fijos tiene un único candidato posible, el modelo lo
+  trata como fijo (sin variables `y` ni `x` propias). Las franjas de una clase se podan a las
+  que son válidas para al menos un candidato (o para todos los fijos).
+
+### 2026-11-23 · Estado de una solución de la etapa 1
+- **Decisión:** en F3 (sin objetivo) una solución encontrada se informa como `FACTIBLE`; F4
+  distinguirá `OPTIMO` al terminar la etapa 2. Cancelar antes o durante la búsqueda devuelve
+  `CANCELADO` (con la mejor solución si la había).
+
+### 2026-11-23 · Segunda propiedad de `test_propiedades`
+- **Contexto:** §20 pide además que un INFACTIBLE produzca un núcleo de diagnóstico, pero el
+  diagnóstico es F5.
+- **Decisión:** en F3 la prueba cubre «el verificador acepta lo que resuelve el modelo» (60
+  escuelas aleatorias por corrida; una corrida de 600 no encontró contraejemplos). La propiedad
+  del diagnóstico se agrega en F5.
+
+### 2026-11-23 · `test_resolucion` desde F3
+- **Decisión:** se crea en F3 para medir el criterio «el mediano encuentra una solución factible
+  en menos de 60 s» (marca `lento`; hoy tarda ~1,5 s). F4 lo amplía con la optimización.

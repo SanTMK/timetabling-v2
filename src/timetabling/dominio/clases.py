@@ -171,3 +171,19 @@ def profesores_posibles(datos: DatosEscuela, clase: Clase) -> list[int]:
     return [
         p.id for p in datos.profesores if p.id is not None and profesor_habilitado(datos, p, clase)
     ]
+
+
+def chocan_destinatarios(
+    a: Destinatario, b: Destinatario, simultaneas: set[int] | None = None
+) -> bool:
+    """Dos destinatarios del mismo grupo no pueden tener clase a la vez (D2), salvo que sean
+    partes **distintas** de una misma división simultánea."""
+    if a.grupo_id != b.grupo_id:
+        return False
+    if a.division_id is None or b.division_id is None:
+        return True
+    if a.division_id != b.division_id:
+        return True
+    if simultaneas is not None and a.division_id not in simultaneas:
+        return True
+    return a.parte == b.parte

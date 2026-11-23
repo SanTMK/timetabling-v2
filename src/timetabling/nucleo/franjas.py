@@ -353,6 +353,8 @@ class Calendario:
         for nivel in datos.niveles:
             limites += [x for r in nivel.recesos for x in (r.inicio, r.fin)]
         limites += [margen, datos.configuracion.descanso_minimo_min]
+        # Con M y P en el mcd, las ventanas de D8 son exactas en ticks.
+        limites += [p.max_minutos_continuos for p in datos.profesores if p.activo]
         calendario.rejilla = calcular_rejilla(limites)
         return calendario
 
