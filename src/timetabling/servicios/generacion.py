@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from timetabling.dominio.modelos import DatosEscuela, EstadoSolucion, Solucion
+from timetabling.nucleo.diagnostico import Diagnostico, diagnosticar
 from timetabling.nucleo.objetivo import pesos, total_ponderado
 from timetabling.nucleo.resolver import (
     OpcionesResolucion,
@@ -38,6 +39,8 @@ class ResultadoGeneracion:
     solucion: Solucion | None = None
     """La solución guardada (si hubo horario)."""
     advertencias: list[Problema] = field(default_factory=list)
+    diagnostico: Diagnostico | None = None
+    """Solo si el resultado es INFACTIBLE (§11.3)."""
 
 
 def nombre_por_defecto(resultado: ResultadoResolucion) -> str:
@@ -81,8 +84,10 @@ def generar(
     tiempo_limite_s: float | None = None,
     hilos: int | None = None,
     al_progresar: Callable[[Progreso], None] | None = None,
+    diagnostico_s: float = 60.0,
 ) -> ResultadoGeneracion:
-    """Genera un horario para el proyecto y lo guarda. Lanza `ErrorValidacion` si hay errores."""
+    """Genera un horario para el proyecto y lo guarda. Lanza `ErrorValidacion` si hay errores.
+    Si el problema es infactible, adjunta el diagnóstico (con `diagnostico_s` de presupuesto)."""
     with Repositorio.abrir(ruta) as repo:
         datos = repo.cargar_datos()
     problemas = validar(datos)
@@ -94,8 +99,14 @@ def generar(
         hilos=hilos or configuracion.hilos,
     )
     resultado, solucion = resolver_y_armar(datos.model_copy(deep=True), opciones, al_progresar)
+    diagnostico = None
+    if resultado.estado is EstadoSolucion.INFACTIBLE and diagnostico_s > 0:
+        if al_progresar:
+            al_progresar(Progreso("diagnostico", 0, None, None, resultado.tiempo_s))
+        diagnostico = diagnosticar(datos, total_s=diagnostico_s)
     guardada = None
     if solucion is not None:
         with Repositorio.abrir(ruta, respaldo_diario=False) as repo:
             guardada = repo.guardar_solucion(solucion)
-    return ResultadoGeneracion(resultado, guardada, [p for p in problemas if not p.es_error])
+    advertencias = [p for p in problemas if not p.es_error]
+    return ResultadoGeneracion(resultado, guardada, advertencias, diagnostico)

@@ -19,6 +19,8 @@ from timetabling.dominio.modelos import Clase, DatosEscuela, ReglasAsignatura, p
 from timetabling.nucleo.franjas import Calendario, Franja, adyacentes, evaluar_franja, prohibida
 
 FAMILIAS: tuple[str, ...] = (
+    "disponibilidad",
+    "prohibidas",
     "curricular",
     "grupo",
     "profesor",
@@ -96,7 +98,11 @@ class ModeloHorario:
 
 class ConstructorModelo:
     """Construye el modelo duro. `refinar` lista las familias que, en modo «entidad», llevan un
-    literal por entidad; las demás llevan uno por familia."""
+    literal por entidad; las demás llevan uno por familia.
+
+    Con suposiciones (diagnóstico), la disponibilidad de los profesores (D5) y las franjas
+    prohibidas (D15) no se podan: se vuelven restricciones de las familias «disponibilidad» y
+    «prohibidas», para que el diagnóstico pueda nombrarlas."""
 
     def __init__(
         self,
@@ -105,8 +111,13 @@ class ConstructorModelo:
         modo: ModoSuposiciones = "ninguno",
         refinar: Iterable[str] = (),
         fijar: Iterable[Colocacion] = (),
+        activas: Iterable[tuple[str, str]] | None = None,
     ) -> None:
+        """Con `activas`, solo se imponen las restricciones de esas claves (familia, entidad
+        o «*»), sin literales; las demás quedan desactivadas. Así el diagnóstico prueba
+        subconjuntos con la relajación lineal completa."""
         self.datos = datos
+        self.activas = set(activas) if activas is not None else None
         self.calendario = calendario or Calendario.de(datos)
         self.modo = modo
         self.refinar = set(refinar)
@@ -114,13 +125,27 @@ class ConstructorModelo:
         self.m = cp_model.CpModel()
         self.profesores = por_id(datos.profesores)
         self.h = ModeloHorario(self.m, self.calendario, {})
+        self.podar = modo == "ninguno" and self.activas is None
+        self._apagada: Lit | None = None
+        self._no_disponibles: list[tuple[int, int, str]] = []
+        self._prohibidas: list[tuple[int, str]] = []
 
     # ------------------------------------------------------------------ registro
 
+    def clave(self, familia: str, entidad: str) -> tuple[str, str]:
+        refinada = self.modo == "entidad" and familia in self.refinar
+        return (familia, entidad if refinada else "*")
+
     def _literal(self, familia: str, entidad: str) -> Lit | None:
+        if self.activas is not None:
+            if self.clave(familia, entidad) in self.activas:
+                return None
+            if self._apagada is None:
+                self._apagada = self.m.new_constant(0)
+            return self._apagada
         if self.modo == "ninguno":
             return None
-        clave = (familia, entidad if self.modo == "entidad" and familia in self.refinar else "*")
+        clave = self.clave(familia, entidad)
         if clave not in self.h.suposiciones:
             self.h.suposiciones[clave] = self.m.new_bool_var(f"sup[{clave[0]}|{clave[1]}]")
         return self.h.suposiciones[clave]
@@ -135,6 +160,7 @@ class ConstructorModelo:
     def construir(self) -> ModeloHorario:
         self._clases()
         self._variables()
+        self._poda_como_restricciones()
         self._d1()
         self._d2()
         self._d3_y_ocupacion()
@@ -162,19 +188,25 @@ class ConstructorModelo:
             nivel_id = next(iter(niveles))
             asignatura = asignaturas[clase.asignatura_id]
             reglas = asignatura.reglas_efectivas(nivel_id)
-            franjas = [
-                f for f in self.calendario.utiles_comunes(ids) if not prohibida(reglas, f)
-            ]  # D14, D15
+            utiles = self.calendario.utiles_comunes(ids)  # D14
+            if self.podar:
+                franjas = [f for f in utiles if not prohibida(reglas, f)]  # D15
+            else:
+                franjas = list(utiles)
+                self._prohibidas += [(clase.id, f.id) for f in utiles if prohibida(reglas, f)]
             posibles = tuple(profesores_posibles(self.datos, clase))  # D4
             if clase.profesores or len(posibles) == 1:
                 fijos, candidatos = posibles, ()
             else:
                 fijos, candidatos = (), posibles
-            if fijos:  # D5 para todos los fijos
-                franjas = [
-                    f for f in franjas
-                    if all(evaluar_franja(self.profesores[p], f).valida for p in fijos)
-                ]  # fmt: skip
+            for p in fijos:  # D5 para todos los fijos
+                invalidas = {
+                    f.id for f in franjas if not evaluar_franja(self.profesores[p], f).valida
+                }
+                if self.podar:
+                    franjas = [f for f in franjas if f.id not in invalidas]
+                else:
+                    self._no_disponibles += [(clase.id, p, f) for f in sorted(invalidas)]
             self.h.clases[clase.id] = ClaseModelo(
                 clase=clase,
                 nivel_id=nivel_id,
@@ -196,9 +228,20 @@ class ConstructorModelo:
                         h.x[(c.id, p, s.id)] = z
                 continue
             validas: dict[int, set[str]] = {
-                p: {s.id for s in c.franjas if evaluar_franja(self.profesores[p], s).valida}
+                p: {
+                    s.id
+                    for s in c.franjas
+                    if not self.podar or evaluar_franja(self.profesores[p], s).valida
+                }
                 for p in c.candidatos
             }  # D5
+            if not self.podar:
+                self._no_disponibles += [
+                    (c.id, p, s.id)
+                    for p in c.candidatos
+                    for s in c.franjas
+                    if not evaluar_franja(self.profesores[p], s).valida
+                ]
             franjas = [s for s in c.franjas if any(s.id in v for v in validas.values())]
             c.franjas = franjas
             for p in c.candidatos:
@@ -220,6 +263,18 @@ class ConstructorModelo:
                         m.add_implication(x, h.y[(c.id, p)])
                         xs.append(x)
                 m.add(z == sum(xs))
+
+    def _poda_como_restricciones(self) -> None:
+        """Sin poda (diagnóstico): D5 y D15 como restricciones con suposiciones."""
+        for clase_id, p, franja_id in self._no_disponibles:
+            x = self.h.x.get((clase_id, p, franja_id))
+            if x is not None:
+                self._r("disponibilidad", f"profesor:{p}", self.m.add(x == 0))
+        for clase_id, franja_id in self._prohibidas:
+            z = self.h.z.get((clase_id, franja_id))
+            if z is not None:
+                asignatura = self.h.clases[clase_id].clase.asignatura_id
+                self._r("prohibidas", f"asignatura:{asignatura}", self.m.add(z == 0))
 
     # ------------------------------------------------------------------ utilidades
 
@@ -342,6 +397,14 @@ class ConstructorModelo:
             if profesor.max_dias is not None and len(por_dia) > profesor.max_dias:
                 dias = [self.dia_con_clase(p, dia) for dia in por_dia]
                 self._r("carga", entidad, self.m.add(sum(dias) <= profesor.max_dias))
+                # Corte: los minutos del día caben en el tope diario solo si da clase ese día.
+                # Es redundante con lo anterior, pero refuerza la relajación lineal.
+                for dia, fs in por_dia.items():
+                    tope = min(profesor.carga_max_diaria_min, self._maximo_dia(fs))
+                    minutos = sum(self.h.ocupa[(p, f.id)] * f.duracion for f in fs)
+                    self._r(
+                        "carga", entidad, self.m.add(minutos <= tope * self.dia_con_clase(p, dia))
+                    )
 
     def _maximo_dia(self, franjas: list[Franja]) -> int:
         """Cota de minutos en un día: suma de la línea de tiempo cubierta por sus franjas."""

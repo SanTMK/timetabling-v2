@@ -1,9 +1,9 @@
 """Creado con Claude.
 
-Propiedades con Hypothesis (§20): sobre escuelas pequeñas aleatorias, si el resolutor devuelve
-una solución, el verificador nunca la rechaza. La segunda propiedad (un INFACTIBLE produce un
-núcleo de diagnóstico no vacío o un conflicto estructural) se agrega en F5, junto con el
-diagnóstico.
+Propiedades con Hypothesis (§20) sobre escuelas pequeñas aleatorias:
+
+- si el resolutor devuelve una solución, el verificador nunca la rechaza;
+- si devuelve INFACTIBLE, el diagnóstico produce un núcleo no vacío o un conflicto estructural.
 """
 
 from hypothesis import HealthCheck, event, given, settings
@@ -20,6 +20,7 @@ from timetabling.dominio.modelos import (
     Disponibilidad,
     Division,
     Espacio,
+    EstadoSolucion,
     Evento,
     Grado,
     Grupo,
@@ -31,6 +32,7 @@ from timetabling.dominio.modelos import (
     ReglasAsignatura,
 )
 from timetabling.dominio.tiempo import DIAS
+from timetabling.nucleo.diagnostico import diagnosticar
 from timetabling.nucleo.resolver import OpcionesResolucion, resolver
 from timetabling.nucleo.verificador import verificar
 
@@ -181,3 +183,8 @@ def test_el_verificador_acepta_lo_que_resuelve_el_modelo(datos: DatosEscuela) ->
     if resultado.colocaciones:
         verificacion = verificar(datos, resultado.colocaciones)
         assert verificacion.valida, [v.mensaje for v in verificacion.violaciones]
+    if resultado.estado is EstadoSolucion.INFACTIBLE:
+        diagnostico = diagnosticar(datos, total_s=20, por_intento_s=5, hilos=2)
+        assert not diagnostico.factible
+        assert diagnostico.estructural or diagnostico.tiene_nucleo, diagnostico.mensaje
+        event("diagnóstico estructural" if diagnostico.estructural else "diagnóstico con núcleo")

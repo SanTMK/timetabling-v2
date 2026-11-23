@@ -276,3 +276,41 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-23 · Prueba de rendimiento
 - **Decisión:** `test_rendimiento` resuelve el mediano con 4 hilos y límite de 280 s; exige
   primera solución < 60 s y total < 300 s, y escribe `rendimiento.json` (artefacto del CI).
+
+## F5 Diagnóstico
+
+### 2026-11-23 · Disponibilidad y franjas prohibidas como familias del diagnóstico
+- **Contexto:** en el modelo normal, D5 (disponibilidad) y D15 (franjas prohibidas) se aplican
+  podando variables, así que no pueden aparecer en un núcleo; pero §11.3 pone como ejemplo «la
+  disponibilidad de López».
+- **Decisión:** en el modelo de diagnóstico no se poda: D5 y D15 se agregan como restricciones
+  de las familias `disponibilidad` (entidad `profesor:p`) y `prohibidas` (entidad
+  `asignatura:a`). El modelo normal sigue podando.
+
+### 2026-11-23 · Filtro de eliminación sin literales
+- **Contexto:** con suposiciones, CP-SAT trata las restricciones como condicionadas y su
+  relajación lineal es débil: demostrar que un subconjunto es infactible podía tardar 8 s aun
+  en el ejemplo pequeño.
+- **Decisión:** cada núcleo se **extrae** como pide §11.3 (suposiciones, un hilo,
+  `sufficient_assumptions_for_infeasibility`), pero el filtro de eliminación reconstruye el
+  modelo con solo las restricciones del subconjunto, sin literales (`ConstructorModelo(...,
+  activas=...)`), y lo resuelve con los hilos de la configuración. En el refinamiento por
+  entidad, si el núcleo con suposiciones no sale en 3 s, el filtro parte de todas las entidades
+  de las familias del núcleo. Resultado en el ejemplo pequeño: de 28 s a 7,7 s, con el mismo
+  núcleo mínimo.
+- **Descartada:** usar varios hilos con suposiciones (no ayudaba: el cuello de botella es la
+  relajación débil, y con varios hilos CP-SAT no da el subconjunto suficiente).
+
+### 2026-11-23 · Corte para `max_dias`
+- **Decisión:** con `max_dias`, además de `Σ días ≤ max_dias` se agrega por día
+  `minutos ≤ tope_diario × día_con_clase` (familia `carga`). Es redundante pero refuerza la
+  relajación lineal, en el modelo normal y en el diagnóstico.
+
+### 2026-11-23 · Mensajes y enlaces
+- **Decisión:** cada elemento del núcleo se traduce a una frase con la entidad concreta («los
+  límites de carga de Ana», «las 2 horas de Matemáticas de 1°A», «la capacidad de los espacios
+  de tipo «cancha»») y a un `Enlace(entidad, id, texto)` para que la interfaz navegue. Si el
+  núcleo queda vacío, se informa un conflicto estructural. Si se agota el presupuesto, el
+  mensaje lo dice (`minimo = False`).
+- **Integración:** `generar` diagnostica solo si el resultado es INFACTIBLE (60 s por defecto;
+  la interfaz usará 30 s) y la línea de comandos imprime el mensaje y los enlaces.

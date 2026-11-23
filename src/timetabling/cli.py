@@ -143,6 +143,10 @@ def generar(
     typer.echo(f"Estado: {r.estado.value} en {r.tiempo_s:.1f} s.")
     if resultado.solucion is None:
         typer.echo(r.mensaje or "No se generó ningún horario.")
+        if resultado.diagnostico is not None:
+            typer.echo(f"Diagnóstico: {resultado.diagnostico.mensaje}")
+            for enlace in resultado.diagnostico.enlaces:
+                typer.echo(f"  → {enlace.entidad}: {enlace.texto}")
         raise typer.Exit(1)
     solucion = resultado.solucion
     cota = " (cota superior)" if solucion.penalizaciones_son_cota else ""
