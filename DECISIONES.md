@@ -48,3 +48,96 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 - **Contexto:** §18 dice que `timetabling` sin argumentos abre la interfaz, que llega en F6.
 - **Decisión:** hasta F6 imprime un aviso y termina con código 0.
 - **Descartada:** mostrar la ayuda (cambiaría el comportamiento esperado más adelante).
+
+## F1 Dominio y persistencia
+
+### 2026-11-23 · Destinatario parcial = división + nombre de la parte
+- **Contexto:** §5.2 describe los destinatarios como pares `(grupo_id, parte)`, pero D2 necesita
+  saber a qué división pertenece cada parte.
+- **Decisión:** `Destinatario(grupo_id, division_id, parte)`; `division_id` y `parte` son ambos
+  nulos (grupo completo) o ambos presentes. La parte se identifica por su nombre.
+- **Descartada:** identificar la parte por posición (frágil si se reordenan las partes).
+
+### 2026-11-23 · Eventos del profesor
+- **Contexto:** §5.1 lista `Profesor.eventos` sin definir su forma; §7.6 habla de «un evento al
+  que asiste».
+- **Decisión:** `EventoProfesor(nombre, dia, inicio, fin)`: compromisos propios del profesor
+  (juntas, cursos) en los que no puede dar clase.
+- **Descartada:** referencias a eventos de nivel (los eventos de nivel ya excluyen las franjas
+  de todo el nivel).
+
+### 2026-11-23 · Reglas por nivel anidadas en la asignatura
+- **Contexto:** §5.1 define `ReglasAsignaturaNivel` con `asignatura_id` y `nivel_id`.
+- **Decisión:** en el modelo se guardan dentro de `Asignatura.reglas_por_nivel` (sin
+  `asignatura_id`, que es implícito); en la base son la tabla `reglas_asignatura_nivel`. Un campo
+  `None` hereda la regla por defecto; una lista vacía de franjas sobrescribe con «ninguna».
+- **Descartada:** lista aparte en `DatosEscuela` (la pantalla de Asignaturas las edita juntas).
+
+### 2026-11-23 · Espacio de una clase: herencia explícita
+- **Contexto:** `Clase.espacio_requerido` hereda el de la asignatura o lo sobrescribe, incluso
+  con «ninguno».
+- **Decisión:** `Clase.sobrescribe_espacio: bool` más `espacio_requerido`; `espacio_efectivo()`
+  resuelve la herencia.
+- **Descartada:** un valor centinela dentro de `espacio_requerido`.
+
+### 2026-11-23 · Una asignación por profesor
+- **Contexto:** una clase puede tener varios profesores fijos (D6).
+- **Decisión:** `Asignacion` guarda una fila por `(clase, franja, profesor)`. Se agrega
+  `bloqueada` (📌 del editor, §12.5). `Asignacion.franja` es la posición en `Solucion.franjas`.
+  Se agregan `Solucion.penalizaciones_son_cota` (§11.1) y `Violacion(restriccion, mensaje,
+  clase_id)`.
+- **Descartada:** una fila por franja con una lista de profesores (complica `SET NULL`).
+
+### 2026-11-23 · Versión del esquema en `metadatos`
+- **Contexto:** §6.2 detecta los archivos v6 por su tabla `esquema_version`.
+- **Decisión:** la v2 guarda `aplicacion` y `version_esquema` en una tabla `metadatos`, sin
+  tabla `esquema_version`. La configuración es una fila JSON en `configuracion`.
+- **Descartada:** `PRAGMA user_version` (menos explícito al inspeccionar el archivo).
+
+### 2026-11-23 · Unicidad
+- **Decisión:** únicos el nombre de nivel, asignatura, espacio y alias; grado por nivel; sección
+  por grado; nombre de profesor entre activos (índice parcial). Solo una solución vigente
+  (índice parcial).
+
+### 2026-11-23 · Clases sin destinatarios tras un borrado
+- **Contexto:** borrar un grupo o una división borra en cascada sus destinatarios.
+- **Decisión:** en la misma transacción se borran las clases que quedan sin destinatarios. Una
+  clase conjunta conserva sus otros grupos.
+
+### 2026-11-23 · Profesores referenciados por suplencias
+- **Decisión:** un profesor que aparece en una suplencia (ausente o suplente) tampoco se puede
+  eliminar (FK `RESTRICT`); como en §6.3, se ofrece desactivarlo.
+
+### 2026-11-23 · `reemplazar_datos` empareja por id
+- **Contexto:** en la v6 `reemplazar_datos()` borraba todas las soluciones.
+- **Decisión:** se conservan las soluciones; las entidades se emparejan por id (las que faltan se
+  borran; los profesores en uso que faltan se desactivan). Todas las entidades deben traer id.
+  Siempre hay respaldo previo si el archivo tenía datos.
+
+### 2026-11-23 · Cuándo un borrado en cascada respalda
+- **Decisión:** `N = 20` filas afectadas (`UMBRAL_RESPALDO_CASCADA`). Borrar una solución
+  siempre respalda. `afectados_por_eliminar()` simula el borrado dentro de un punto de guardado
+  y lo revierte, así cuenta exactamente lo que haría la cascada.
+
+### 2026-11-23 · Archivo de bloqueo y carpetas sincronizadas
+- **Decisión:** el módulo `persistencia/archivo.py` (no listado en §4) contiene la detección y el
+  bloqueo. Un bloqueo de otro equipo siempre se considera vigente; uno de este equipo, solo si su
+  proceso sigue vivo (en Windows se consulta con `OpenProcess`, porque `os.kill(pid, 0)`
+  terminaría el proceso). Si el bloqueo es ajeno y vigente, no se sobrescribe ni se borra al
+  cerrar.
+- **Detección:** por nombres de ruta (OneDrive, Dropbox, Google Drive/Mi unidad, iCloud/Mobile
+  Documents, CloudStorage), rutas UNC y, en Windows, `GetDriveTypeW == DRIVE_REMOTE`.
+
+### 2026-11-23 · Nombres de respaldo en el mismo segundo
+- **Decisión:** si ya hay respaldos en el mismo segundo se agrega `-1`, `-2`…, siempre mayor que
+  el más alto existente, para que la poda no reutilice un nombre y el orden se mantenga.
+
+### 2026-11-23 · Ejemplos
+- **Decisión:** `--tamano` vale `pequeno` por defecto. `--sobrescribir` respalda el archivo
+  existente en `.respaldos/` antes de reemplazarlo.
+  - Pequeño: primaria de 5 grupos (1°A–5°A) y 12 profesores por asignatura.
+  - Mediano: preescolar K1–K3 × A/B (45 min, con titular), primaria 1°–6° × A/B (50 min, con
+    titular y hora cívica), secundaria 7°–9° × A–D (50 min). Clase conjunta: Ed. Física de
+    9°C+9°D. División: Inglés por nivel en 8°A y 8°B. Bloqueo: 6°B los viernes de 13:00 a 13:50.
+    Profesora multinivel con disponibilidad parcial: Sara Kim (inglés de preescolar y 1°–3°,
+    de 08:00 a 12:30). Espacios: cancha (2) y taller (1).
