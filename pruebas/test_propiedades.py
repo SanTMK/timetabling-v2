@@ -176,7 +176,7 @@ def escuelas(draw: st.DrawFn) -> DatosEscuela:
 )
 @given(escuelas())
 def test_el_verificador_acepta_lo_que_resuelve_el_modelo(datos: DatosEscuela) -> None:
-    resultado = resolver(datos, OpcionesResolucion(tiempo_limite_s=10, hilos=2))
+    resultado = resolver(datos, OpcionesResolucion(tiempo_limite_s=10, hilos=2, optimizar=False))
     event(resultado.estado.value)
     if resultado.colocaciones:
         verificacion = verificar(datos, resultado.colocaciones)

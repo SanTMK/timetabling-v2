@@ -249,7 +249,7 @@ def test_atajo_motivos() -> None:
 @pytest.fixture(scope="module")
 def mediano_resuelto() -> tuple[DatosEscuela, list[Colocacion]]:
     datos = ejemplo_mediano()
-    resultado = resolver(datos, OpcionesResolucion(tiempo_limite_s=60, hilos=8))
+    resultado = resolver(datos, OpcionesResolucion(tiempo_limite_s=60, hilos=8, optimizar=False))
     assert resultado.colocaciones
     return datos, resultado.colocaciones
 

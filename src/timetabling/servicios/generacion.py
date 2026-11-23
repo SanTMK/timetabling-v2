@@ -1,0 +1,101 @@
+"""Creado con Claude.
+
+Caso de uso «Generar horario» (§11.1, §11.2): valida, resuelve, verifica y guarda la solución.
+La resolución recibe una copia de los datos, así que puede correr en otro hilo.
+"""
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from timetabling.dominio.modelos import DatosEscuela, EstadoSolucion, Solucion
+from timetabling.nucleo.objetivo import pesos, total_ponderado
+from timetabling.nucleo.resolver import (
+    OpcionesResolucion,
+    Progreso,
+    Resolutor,
+    ResultadoResolucion,
+)
+from timetabling.nucleo.validacion import Problema, hay_errores, validar
+from timetabling.nucleo.verificador import verificar
+from timetabling.persistencia.migraciones import ErrorProyecto
+from timetabling.persistencia.repositorio import Repositorio
+from timetabling.servicios.soluciones import a_solucion
+
+
+class ErrorValidacion(ErrorProyecto):
+    """Los datos tienen errores de validación (§10): no se resuelve."""
+
+    def __init__(self, problemas: list[Problema]) -> None:
+        self.problemas = problemas
+        errores = [p for p in problemas if p.es_error]
+        super().__init__(f"Hay {len(errores)} errores de validación; corríjalos antes de generar.")
+
+
+@dataclass
+class ResultadoGeneracion:
+    resolucion: ResultadoResolucion
+    solucion: Solucion | None = None
+    """La solución guardada (si hubo horario)."""
+    advertencias: list[Problema] = field(default_factory=list)
+
+
+def nombre_por_defecto(resultado: ResultadoResolucion) -> str:
+    return f"Generado ({resultado.estado.value.lower().replace('_', ' ')})"
+
+
+def resolver_y_armar(
+    datos: DatosEscuela,
+    opciones: OpcionesResolucion,
+    al_progresar: Callable[[Progreso], None] | None = None,
+    resolutor: Resolutor | None = None,
+) -> tuple[ResultadoResolucion, Solucion | None]:
+    """Resuelve, verifica y arma la `Solucion` (sin guardarla)."""
+    resolutor = resolutor or Resolutor(datos, opciones, al_progresar)
+    resultado = resolutor.resolver()
+    if not resultado.colocaciones:
+        return resultado, None
+    verificacion = verificar(datos, resultado.colocaciones, calendario=resolutor.calendario)
+    estado = resultado.estado if verificacion.valida else EstadoSolucion.INVALIDA
+    penalizaciones = dict(resultado.penalizaciones)
+    penalizaciones["total"] = total_ponderado(
+        penalizaciones, pesos(datos.configuracion.criterios, con_base=opciones.base is not None)
+    )
+    solucion = a_solucion(
+        datos,
+        resultado.colocaciones,
+        nombre=nombre_por_defecto(resultado),
+        estado=estado,
+        origen="generado",
+        calendario=resolutor.calendario,
+        tiempo_s=resultado.tiempo_s,
+        penalizaciones=penalizaciones,
+        penalizaciones_son_cota=resultado.penalizaciones_son_cota,
+        violaciones=verificacion.violaciones,
+    )
+    return resultado, solucion
+
+
+def generar(
+    ruta: Path | str,
+    tiempo_limite_s: float | None = None,
+    hilos: int | None = None,
+    al_progresar: Callable[[Progreso], None] | None = None,
+) -> ResultadoGeneracion:
+    """Genera un horario para el proyecto y lo guarda. Lanza `ErrorValidacion` si hay errores."""
+    with Repositorio.abrir(ruta) as repo:
+        datos = repo.cargar_datos()
+    problemas = validar(datos)
+    if hay_errores(problemas):
+        raise ErrorValidacion(problemas)
+    configuracion = datos.configuracion
+    opciones = OpcionesResolucion(
+        tiempo_limite_s=tiempo_limite_s or configuracion.tiempo_limite_s,
+        hilos=hilos or configuracion.hilos,
+    )
+    resultado, solucion = resolver_y_armar(datos.model_copy(deep=True), opciones, al_progresar)
+    guardada = None
+    if solucion is not None:
+        with Repositorio.abrir(ruta, respaldo_diario=False) as repo:
+            guardada = repo.guardar_solucion(solucion)
+    return ResultadoGeneracion(resultado, guardada, [p for p in problemas if not p.es_error])

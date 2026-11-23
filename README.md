@@ -15,7 +15,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F1 Dominio y persistencia | ✔ Entidades (§5), archivo SQLite con migraciones, borrados, respaldos y bloqueo (§6), ejemplos |
 | F2 Tiempo y validación | ✔ Franjas, recesos, eventos, bloqueos, traslapes, cliques, rejilla Δ, disponibilidad (§7); validación global (§10) |
 | F3 Modelo duro y verificador | ✔ Modelo CP-SAT con D1–D16, etapa de factibilidad, conflictos incrementales, verificador independiente; el mediano resuelve en ~1,5 s |
-| F4–F12 | Pendientes |
+| F4 Objetivo | ✔ Criterios B1–B10 con prioridades y perfiles, etapa de optimización, `timetabling generar` |
+| F5–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling --version` muestra la versión.
@@ -23,9 +24,9 @@ Lo que ya funciona:
   de ejemplo.
 - `timetabling validar P.horario` lista errores y advertencias con su acción sugerida
   (código de salida 1 si hay errores).
-- El núcleo ya genera horarios que cumplen todas las restricciones duras (todavía sin
-  optimizar las blandas) y los comprueba con un verificador independiente. Se usa desde las
-  pruebas; el comando `timetabling generar` llega con F4.
+- `timetabling generar P.horario [--tiempo-limite N] [--hilos N]` valida, genera el horario
+  (primero una solución factible y luego la optimiza según las prioridades de §9), lo comprueba
+  con el verificador independiente y lo guarda en el proyecto con sus penalizaciones.
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
   `P.horario.lock` y, si la carpeta está sincronizada (OneDrive, Dropbox…), un aviso.
 - La suite de pruebas bloquea la red en ejecución y verifica las cabeceras «Creado con Claude.».
@@ -50,6 +51,10 @@ uv run timetabling ejemplo mediano.horario --tamano mediano
 
 ```bash
 uv run timetabling validar mediano.horario
+```
+
+```bash
+uv run timetabling generar mediano.horario --tiempo-limite 60
 ```
 
 ```bash

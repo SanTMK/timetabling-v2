@@ -1,9 +1,10 @@
 """Creado con Claude.
 
-Resolución (§11.1). Etapa 1: factibilidad sin objetivo (`stop_after_first_solution`). La etapa
-2 (optimización con el objetivo y la primera solución como pista) se agrega en F4. El tiempo de
-construcción se descuenta del límite (mínimo 1 s de búsqueda). `cancelar()` detiene la búsqueda
-desde otro hilo y conserva la mejor solución.
+Resolución (§11.1). Etapa 1: factibilidad sin objetivo (`stop_after_first_solution`). Etapa 2:
+optimización con el objetivo (§9) y la primera solución como pista. El tiempo de construcción
+se descuenta del límite (mínimo 1 s de búsqueda por etapa). `cancelar()` detiene la búsqueda
+desde otro hilo y conserva la mejor solución. Si la etapa 2 no termina, las penalizaciones son
+cotas superiores.
 """
 
 import threading
@@ -14,9 +15,10 @@ from dataclasses import dataclass, field
 from ortools.sat.python import cp_model
 
 from timetabling.dominio.borrador import Colocacion
-from timetabling.dominio.modelos import DatosEscuela, EstadoSolucion
+from timetabling.dominio.modelos import Criterios, DatosEscuela, EstadoSolucion
 from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.modelo import ConstructorModelo, ModeloHorario
+from timetabling.nucleo.objetivo import ESCALA_UNIDAD, ConstructorObjetivo, Objetivo, evaluar
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,10 @@ class OpcionesResolucion:
     """Clases libres; las demás se fijan como en `base` (reparación, §12.4)."""
     fijar: list[Colocacion] = field(default_factory=list)
     """Colocaciones obligatorias además de las asignaciones fijas de los datos."""
+    optimizar: bool = True
+    """Con `False` solo se ejecuta la etapa de factibilidad."""
+    criterios: Criterios | None = None
+    """Prioridades a usar; por defecto, las de la configuración del proyecto."""
 
 
 @dataclass
@@ -57,15 +63,20 @@ class ResultadoResolucion:
 
 
 class _Escucha(cp_model.CpSolverSolutionCallback):
-    def __init__(self, resolutor: "Resolutor", fase: str) -> None:
+    def __init__(self, resolutor: "Resolutor", fase: str, con_objetivo: bool) -> None:
         super().__init__()
         self.resolutor = resolutor
         self.fase = fase
+        self.con_objetivo = con_objetivo
         self.soluciones = 0
 
     def on_solution_callback(self) -> None:
         self.soluciones += 1
-        self.resolutor._informar(self.fase, self.soluciones, None, None)
+        mejor = cota = None
+        if self.con_objetivo:
+            mejor = self.objective_value / ESCALA_UNIDAD
+            cota = self.best_objective_bound / ESCALA_UNIDAD
+        self.resolutor._informar(self.fase, self.soluciones, mejor, cota)
         if self.resolutor.cancelado:
             self.stop_search()
 
@@ -86,6 +97,7 @@ class Resolutor:
         self._solver: cp_model.CpSolver | None = None
         self._candado = threading.Lock()
         self._inicio = 0.0
+        self.calendario = Calendario.de(datos)
 
     def cancelar(self) -> None:
         """Detiene la búsqueda en curso (seguro desde otro hilo)."""
@@ -108,61 +120,109 @@ class Resolutor:
             fijar += [c for c in self.opciones.base if c.clase_id not in self.opciones.vecindario]
         return fijar
 
-    def construir(self, calendario: Calendario | None = None) -> ModeloHorario:
-        constructor = ConstructorModelo(self.datos, calendario, fijar=self._fijaciones())
+    def construir(self) -> tuple[ModeloHorario, Objetivo | None]:
+        constructor = ConstructorModelo(self.datos, self.calendario, fijar=self._fijaciones())
         horario = constructor.construir()
+        objetivo = None
+        if self.opciones.optimizar:
+            criterios = self.opciones.criterios or self.datos.configuracion.criterios
+            objetivo = ConstructorObjetivo(constructor, criterios, self.opciones.base).construir()
         self._pistas(horario, self.opciones.base or [])
-        return horario
+        return horario, objetivo
 
     @staticmethod
     def _pistas(horario: ModeloHorario, base: Iterable[Colocacion]) -> None:
         elegidas = {(c.clase_id, c.franja_id) for c in base}
         if not elegidas:
             return
-        for (clase_id, franja_id), z in horario.z.items():
+        for (clase_id, franja_id), z in horario.z.items():  # z es única por clave
             horario.modelo.add_hint(z, (clase_id, franja_id) in elegidas)
+
+    def _solver_nuevo(self, segundos: float, primera: bool) -> cp_model.CpSolver:
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = max(1.0, segundos)
+        solver.parameters.num_workers = max(1, self.opciones.hilos)
+        solver.parameters.random_seed = self.opciones.semilla
+        solver.parameters.stop_after_first_solution = primera
+        with self._candado:
+            self._solver = solver
+        return solver
+
+    def _soltar_solver(self) -> None:
+        with self._candado:
+            self._solver = None
 
     def resolver(self) -> ResultadoResolucion:
         self._inicio = time.monotonic()
         self._informar("construyendo", 0, None, None)
-        horario = self.construir()
-        construccion = time.monotonic() - self._inicio
-        restante = max(1.0, self.opciones.tiempo_limite_s - construccion)
+        horario, objetivo = self.construir()
+        limite = self.opciones.tiempo_limite_s
 
-        solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = restante
-        solver.parameters.num_workers = max(1, self.opciones.hilos)
-        solver.parameters.random_seed = self.opciones.semilla
-        solver.parameters.stop_after_first_solution = True
-        with self._candado:
-            self._solver = solver
+        # Etapa 1: factibilidad sin objetivo.
+        solver = self._solver_nuevo(limite - self._transcurrido(), primera=True)
         if self.cancelado:
+            self._soltar_solver()
             return ResultadoResolucion(EstadoSolucion.CANCELADO, [], self._transcurrido())
-        escucha = _Escucha(self, "factibilidad")
-        estado = solver.solve(horario.modelo, escucha)
-        with self._candado:
-            self._solver = None
-        tiempo = self._transcurrido()
+        estado = solver.solve(horario.modelo, _Escucha(self, "factibilidad", False))
+        self._soltar_solver()
+        tiempo_primera = self._transcurrido()
 
-        if estado in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            colocaciones = horario.colocaciones(solver)
-            return ResultadoResolucion(
-                EstadoSolucion.CANCELADO if self.cancelado else EstadoSolucion.FACTIBLE,
-                colocaciones,
-                tiempo,
-                tiempo_primera_s=tiempo,
-            )
         if estado == cp_model.INFEASIBLE:
             return ResultadoResolucion(
-                EstadoSolucion.INFACTIBLE, [], tiempo, mensaje="El problema no tiene solución."
+                EstadoSolucion.INFACTIBLE,
+                [],
+                tiempo_primera,
+                mensaje="El problema no tiene solución.",
             )
         if estado == cp_model.MODEL_INVALID:
             raise RuntimeError(f"Modelo inválido: {horario.modelo.validate()}")
+        if estado not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return ResultadoResolucion(
+                EstadoSolucion.CANCELADO
+                if self.cancelado
+                else EstadoSolucion.SIN_SOLUCION_EN_TIEMPO,
+                [],
+                tiempo_primera,
+                mensaje="No se encontró una solución en el tiempo disponible.",
+            )
+
+        colocaciones = horario.colocaciones(solver)
+        optimo = objetivo is None or objetivo.vacio
+        if not optimo and not self.cancelado and objetivo is not None:
+            # Etapa 2: optimización con la primera solución como pista.
+            modelo = horario.modelo
+            modelo.clear_hints()
+            # En las clases con profesores fijos, x y z son la misma variable: una pista por
+            # variable (las repetidas invalidan el modelo).
+            unicas = {
+                v.index: v for v in [*horario.z.values(), *horario.x.values(), *horario.y.values()]
+            }
+            for var in unicas.values():
+                modelo.add_hint(var, solver.boolean_value(var))
+            modelo.minimize(objetivo.expresion)
+            solver = self._solver_nuevo(limite - self._transcurrido(), primera=False)
+            if not self.cancelado:
+                estado = solver.solve(modelo, _Escucha(self, "optimizacion", True))
+                if estado == cp_model.MODEL_INVALID:
+                    self._soltar_solver()
+                    raise RuntimeError(f"Modelo inválido: {modelo.validate()}")
+                if estado in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                    colocaciones = horario.colocaciones(solver)
+                    optimo = estado == cp_model.OPTIMAL
+            self._soltar_solver()
+
+        if self.cancelado:
+            estado_final = EstadoSolucion.CANCELADO
+        else:
+            estado_final = EstadoSolucion.OPTIMO if optimo else EstadoSolucion.FACTIBLE
+        valores = evaluar(self.datos, colocaciones, self.calendario, self.opciones.base)
         return ResultadoResolucion(
-            EstadoSolucion.CANCELADO if self.cancelado else EstadoSolucion.SIN_SOLUCION_EN_TIEMPO,
-            [],
-            tiempo,
-            mensaje="No se encontró una solución en el tiempo disponible.",
+            estado_final,
+            colocaciones,
+            self._transcurrido(),
+            tiempo_primera_s=tiempo_primera,
+            penalizaciones=valores,
+            penalizaciones_son_cota=not optimo,
         )
 
     def _transcurrido(self) -> float:

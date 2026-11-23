@@ -100,6 +100,62 @@ def validar(
         raise typer.Exit(1)
 
 
+@app.command()
+def generar(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
+    tiempo_limite: Annotated[
+        int | None,
+        typer.Option("--tiempo-limite", help="Segundos (por defecto, los del proyecto)."),
+    ] = None,
+    hilos: Annotated[int | None, typer.Option("--hilos", help="Hilos del solver.")] = None,
+) -> None:
+    """Genera un horario y lo guarda en el proyecto. Código 1 si no hay horario."""
+    from timetabling.nucleo.objetivo import NOMBRES_CRITERIOS
+    from timetabling.nucleo.resolver import Progreso
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.servicios.generacion import ErrorValidacion
+    from timetabling.servicios.generacion import generar as generar_horario
+
+    ultimo = {"fase": ""}
+
+    def informar(progreso: Progreso) -> None:
+        if progreso.fase != ultimo["fase"]:
+            ultimo["fase"] = progreso.fase
+            typer.echo(f"[{progreso.tiempo_s:6.1f} s] Fase: {progreso.fase}")
+        if progreso.mejor_objetivo is not None:
+            typer.echo(
+                f"[{progreso.tiempo_s:6.1f} s] Solución {progreso.soluciones}: "
+                f"penalización {progreso.mejor_objetivo:.1f} (cota {progreso.cota:.1f})"
+            )
+
+    try:
+        resultado = generar_horario(proyecto, tiempo_limite, hilos, informar)
+    except ErrorValidacion as error:
+        typer.echo(str(error), err=True)
+        for problema in error.problemas:
+            if problema.es_error:
+                typer.echo(f"✖ {problema.mensaje}", err=True)
+        raise typer.Exit(1) from error
+    except (ErrorProyecto, FileNotFoundError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    r = resultado.resolucion
+    typer.echo(f"Estado: {r.estado.value} en {r.tiempo_s:.1f} s.")
+    if resultado.solucion is None:
+        typer.echo(r.mensaje or "No se generó ningún horario.")
+        raise typer.Exit(1)
+    solucion = resultado.solucion
+    cota = " (cota superior)" if solucion.penalizaciones_son_cota else ""
+    typer.echo(f"Guardado como «{solucion.nombre}» (id {solucion.id}).")
+    typer.echo(f"Penalización total{cota}: {solucion.penalizaciones.get('total', 0):.1f}")
+    for criterio, nombre in NOMBRES_CRITERIOS.items():
+        if criterio in solucion.penalizaciones:
+            typer.echo(f"  {criterio} {nombre}: {solucion.penalizaciones[criterio]:g}")
+    if solucion.violaciones:
+        typer.echo(f"⚠ El verificador encontró {len(solucion.violaciones)} violaciones.")
+        raise typer.Exit(1)
+
+
 def principal() -> None:
     """Punto de entrada del ejecutable `timetabling`."""
     app()

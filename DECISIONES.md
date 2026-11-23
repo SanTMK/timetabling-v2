@@ -229,3 +229,50 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-23 · `test_resolucion` desde F3
 - **Decisión:** se crea en F3 para medir el criterio «el mediano encuentra una solución factible
   en menos de 60 s» (marca `lento`; hoy tarda ~1,5 s). F4 lo amplía con la optimización.
+
+## F4 Objetivo
+
+### 2026-11-23 · Escala entera del objetivo
+- **Decisión:** el objetivo de CP-SAT es entero: cada unidad con peso 1 vale 5000; los criterios
+  por minuto (B1, B6) valen 100 por minuto (una unidad = 50 min). Así los pesos avanzados admiten
+  dos decimales. `Progreso.mejor_objetivo` y la penalización total se informan en unidades.
+
+### 2026-11-23 · Penalizaciones informadas = evaluación sin solver
+- **Contexto:** si la etapa 2 no termina, algunas variables auxiliares del modelo pueden no estar
+  ajustadas (por ejemplo, las de «antes de la primera clase» de B1).
+- **Decisión:** las penalizaciones que se guardan se calculan con `objetivo.evaluar()`, que no
+  usa el solver (la misma función servirá para el editor). En el óptimo, el modelo y la
+  evaluación coinciden criterio por criterio; una prueba lo comprueba con los tres perfiles.
+  La solución guarda además `total`, la suma ponderada.
+
+### 2026-11-23 · Definiciones de detalle de los criterios
+- **B1:** la línea de tiempo del profesor se parte en segmentos entre los límites de sus franjas
+  y de los recesos; un segmento libre entre la primera y la última clase cuenta, salvo que caiga
+  dentro del receso de un nivel en el que da clase ese día.
+- **B2:** `días lectivos` = días con franjas útiles comunes a los grupos de la clase.
+- **B6:** por asignatura y nivel con al menos dos profesores posibles, máximo − mínimo de los
+  minutos que cada uno imparte **de esa asignatura en ese nivel** (incluye a quienes quedan en 0).
+  Se descartó usar la carga total del profesor, que mezclaría asignaturas.
+- **B7:** se cuenta por grupo destinatario: una clase conjunta sin el titular de uno de sus
+  grupos cuenta 1 por cada grupo afectado.
+- **B9:** `2 − z − x` por ocurrencia de la base (moverla, 2; cambiar solo el profesor, 1). Si la
+  franja de la base ya no es posible, cuesta 2 fijo y no restringe nada.
+- **B10:** franjas útiles libres del grupo entre su primera y su última clase del día.
+
+### 2026-11-23 · Estados al optimizar
+- **Decisión:** `OPTIMO` si la etapa 2 demuestra el óptimo (o si no hay criterios activos);
+  `FACTIBLE` con `penalizaciones_son_cota = True` si se acabó el tiempo; `CANCELADO` conserva la
+  mejor solución encontrada. Las pistas de la etapa 2 son una por variable (en las clases con
+  profesores fijos, `x` y `z` son la misma variable y repetirla invalida el modelo).
+
+### 2026-11-23 · Comando `generar` desde F4
+- **Decisión:** `timetabling generar` (§18) ya valida, resuelve, verifica y guarda la solución
+  (`servicios/generacion.py`). Si el verificador encuentra violaciones, se guarda como
+  `INVALIDA` con la lista. Si no hay horario (INFACTIBLE, sin solución en tiempo), no se guarda
+  nada y el comando termina con código 1. La opción `--exportar` llega con la exportación (F7).
+- **Conversión:** `servicios/soluciones.py` arma la `Solucion` con la instantánea de **todas** las
+  franjas generadas de todos los niveles y una asignación por profesor.
+
+### 2026-11-23 · Prueba de rendimiento
+- **Decisión:** `test_rendimiento` resuelve el mediano con 4 hilos y límite de 280 s; exige
+  primera solución < 60 s y total < 300 s, y escribe `rendimiento.json` (artefacto del CI).
