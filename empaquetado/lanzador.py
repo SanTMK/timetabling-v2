@@ -7,6 +7,7 @@ El ejecutable no tiene consola. En Windows, para que los subcomandos escriban su
 1. si el proceso heredó una salida redirigida (archivo o tubería), se usa esa;
 2. si no, se adjunta a la consola del proceso padre, si existe;
 3. si tampoco, la salida se descarta.
+La salida va siempre en UTF-8.
 """
 
 import os
@@ -34,7 +35,13 @@ def _salida_windows() -> None:
 
     salida = sys.stdout if sys.stdout is not None else abrir(-11, "w")
     error = sys.stderr if sys.stderr is not None else abrir(-12, "w")
+    # Siempre UTF-8 (si no, Python usa la página de códigos de Windows y los acentos se dañan).
+    for flujo in (salida, error):
+        reconfigurar = getattr(flujo, "reconfigure", None)
+        if reconfigurar is not None:
+            reconfigurar(encoding="utf-8", errors="replace")
     if salida is None and kernel32.AttachConsole(-1):  # ATTACH_PARENT_PROCESS
+        kernel32.SetConsoleOutputCP(65001)  # la consola interpreta UTF-8
         salida = open("CONOUT$", "w", encoding="utf-8", errors="replace")  # noqa: SIM115
         error = error or salida
     nulo = open(os.devnull, "w")  # noqa: SIM115

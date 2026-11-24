@@ -138,6 +138,9 @@ def humo(exe: Path) -> None:
     with tempfile.TemporaryDirectory() as temporal:
         carpeta = Path(temporal)
         salida = correr("--version", carpeta=carpeta)
+        creado = correr("ejemplo", "u.horario", "--tamano", "pequeno", carpeta=carpeta)
+        if "«u.horario»" not in creado:
+            raise SystemExit(f"La salida no llega en UTF-8: «{creado}»")
         if version("timetabling") not in salida:
             raise SystemExit(f"--version no muestra {version('timetabling')}: «{salida}»")
         correr("ejemplo", "t.horario", "--tamano", "pequeno", carpeta=carpeta)
