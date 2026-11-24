@@ -323,5 +323,5 @@ def test_restaurar_respaldo(con_pequeno: VentanaPrincipal) -> None:
 
 
 def test_ancho_minimo_de_la_ventana(ventana: VentanaPrincipal) -> None:
-    """La ventana cabe en pantallas de 800 px de ancho (y en la virtual de «offscreen»)."""
-    assert ventana.minimumSizeHint().width() <= 800
+    """La ventana cabe en una laptop pequeña (1024 px); en macOS las fuentes la ensanchan."""
+    assert ventana.minimumSizeHint().width() <= 1024

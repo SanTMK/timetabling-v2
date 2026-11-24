@@ -26,7 +26,8 @@ from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.objetivo import evaluar, pesos, total_ponderado
 from timetabling.nucleo.resolver import OpcionesResolucion, Resolutor
 
-LIMITE_DIA_S = 3.0
+LIMITE_DIA_S = 2.4
+"""Búsqueda con el vecindario del día; con la preparación, el total queda bajo 3 s (§12.4)."""
 LIMITE_SEMANA_S = 5.0
 
 

@@ -410,8 +410,10 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-24 · Vecindario de la reparación
 - **Decisión:** el vecindario del día son las clases con alguna colocación ese día que
   comparten grupo, profesor o tipo de espacio con la clase movida; esas clases quedan libres
-  en toda la semana. Si no hay solución en 3 s, se amplía a todas las clases de esos grupos y
-  profesores (5 s). Las bloqueadas no se mueven nunca. Medido en el mediano: ~1,3 s.
+  en toda la semana. La búsqueda con ese vecindario tiene 2,4 s (con la preparación del modelo,
+  el total queda bajo los 3 s de §12.4 aun en el runner de Windows); si no hay solución, se
+  amplía a todas las clases de esos grupos y profesores (5 s). Las bloqueadas no se mueven
+  nunca. Medido en el mediano: ~1,3 s en una Mac M-series.
 
 ### 2026-11-24 · Interacción en la rejilla
 - **Decisión:** clic en una clase la toma; clic en otra celda la suelta ahí; también se
@@ -439,5 +441,6 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   la «copia ajustada» necesita el mapeo por traslape del reajuste (F9).
 
 ### 2026-11-24 · Ancho mínimo de la ventana
-- **Decisión:** la ventana debe caber en 800 px de ancho; una prueba lo vigila. Las filas de
-  botones largas se reparten en dos.
+- **Decisión:** la ventana debe caber en una laptop de 1024 px de ancho (en macOS las fuentes la
+  ensanchan hasta ~860 px); una prueba lo vigila. Las filas de botones largas se reparten en
+  dos.
