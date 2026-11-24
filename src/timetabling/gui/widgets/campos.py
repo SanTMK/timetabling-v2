@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QHBoxLayout,
     QHeaderView,
     QLineEdit,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTimeEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -75,14 +78,50 @@ class DiasSelector(QWidget):
 
 
 class ListaMarcable(QListWidget):
-    """Lista de opciones `(id, texto)` con casillas."""
+    """Lista de opciones `(id, texto)` con casillas.
+
+    La altura se ajusta al número de opciones (entre `FILAS_MIN` y `FILAS_MAX`); si hay más,
+    aparece un botón «⤢» al pie de la barra de desplazamiento que abre la lista ampliada.
+    """
 
     cambiado = Signal()
+    FILAS_MIN = 4
+    FILAS_MAX = 12
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, ajustar_altura: bool = True) -> None:
         super().__init__(parent)
         self.itemChanged.connect(lambda _item: self.cambiado.emit())
-        self.setMaximumHeight(140)
+        self._ajustar = ajustar_altura
+        self.boton_ampliar = QToolButton()
+        self.boton_ampliar.setText("⤢")
+        self.boton_ampliar.setToolTip("Ampliar la lista")
+        self.boton_ampliar.setAccessibleName("Ampliar la lista")
+        self.boton_ampliar.setAutoRaise(True)
+        self.boton_ampliar.clicked.connect(self.ampliar)
+        if ajustar_altura:
+            self.addScrollBarWidget(self.boton_ampliar, Qt.AlignmentFlag.AlignBottom)
+            self._ajustar_altura()
+
+    def _ajustar_altura(self) -> None:
+        if not self._ajustar:
+            return
+        fila = self.sizeHintForRow(0) if self.count() else -1
+        if fila <= 0:
+            fila = self.fontMetrics().height() + 6
+        filas = min(max(self.count(), self.FILAS_MIN), self.FILAS_MAX)
+        self.setFixedHeight(filas * fila + 2 * self.frameWidth() + 4)
+
+    def opciones(self) -> list[tuple[int, str]]:
+        return [
+            (int(self.item(i).data(Qt.ItemDataRole.UserRole)), self.item(i).text())
+            for i in range(self.count())
+        ]
+
+    def ampliar(self) -> None:
+        """Abre la lista en un diálogo grande, con filtro; al aceptar copia lo marcado."""
+        dialogo = DialogoListaMarcable(self)
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            self.marcar(dialogo.lista.marcados())
 
     def poner(self, opciones: Sequence[tuple[int, str]], marcados: Sequence[int]) -> None:
         self.blockSignals(True)
@@ -96,6 +135,7 @@ class ListaMarcable(QListWidget):
             )
             self.addItem(item)
         self.blockSignals(False)
+        self._ajustar_altura()
 
     def marcados(self) -> list[int]:
         return [
@@ -112,6 +152,55 @@ class ListaMarcable(QListWidget):
             item.setCheckState(
                 Qt.CheckState.Checked if ident in idents else Qt.CheckState.Unchecked
             )
+
+
+class DialogoListaMarcable(QDialog):
+    """Versión ampliada de una `ListaMarcable`, con filtro y «Marcar todo / ninguno»."""
+
+    def __init__(self, origen: ListaMarcable) -> None:
+        super().__init__(origen.window())
+        titulo = origen.accessibleName() or "Seleccionar"
+        self.setWindowTitle(titulo)
+        self.resize(480, 600)
+        capa = QVBoxLayout(self)
+        self.filtro = QLineEdit()
+        self.filtro.setPlaceholderText("Filtrar…")
+        self.filtro.setClearButtonEnabled(True)
+        capa.addWidget(self.filtro)
+        self.lista = ListaMarcable(ajustar_altura=False)
+        self.lista.setAccessibleName(titulo)
+        self.lista.poner(origen.opciones(), origen.marcados())
+        capa.addWidget(self.lista, 1)
+        botones_marcar = QHBoxLayout()
+        todo = QPushButton("Marcar todo")
+        ninguno = QPushButton("Marcar ninguno")
+        botones_marcar.addWidget(todo)
+        botones_marcar.addWidget(ninguno)
+        botones_marcar.addStretch()
+        capa.addLayout(botones_marcar)
+        caja = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        caja.accepted.connect(self.accept)
+        caja.rejected.connect(self.reject)
+        capa.addWidget(caja)
+        self.filtro.textChanged.connect(self._filtrar)
+        todo.clicked.connect(lambda: self._marcar_visibles(True))
+        ninguno.clicked.connect(lambda: self._marcar_visibles(False))
+        self.filtro.setFocus()
+
+    def _filtrar(self, texto: str) -> None:
+        texto = texto.casefold().strip()
+        for i in range(self.lista.count()):
+            item = self.lista.item(i)
+            item.setHidden(bool(texto) and texto not in item.text().casefold())
+
+    def _marcar_visibles(self, marcar: bool) -> None:
+        estado = Qt.CheckState.Checked if marcar else Qt.CheckState.Unchecked
+        for i in range(self.lista.count()):
+            item = self.lista.item(i)
+            if not item.isHidden():
+                item.setCheckState(estado)
 
 
 TipoColumna = Literal["texto", "dia", "hora", "entero", "booleano", "opcion"]

@@ -1,7 +1,7 @@
 """Creado con Claude.
 
 Widgets de la interfaz: editor de disponibilidad (arrastrar, teclado, copiar día, aviso de
-franjas parcialmente cubiertas), cuadrícula de franjas y tablas de filas.
+franjas parcialmente cubiertas), cuadrícula de franjas, tablas de filas y listas marcables.
 """
 
 from typing import Any
@@ -10,7 +10,14 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QWidget
 
 from timetabling.dominio.modelos import Disponibilidad, RangoFranjas
-from timetabling.gui.widgets.campos import Columna, DiasSelector, HoraEdit, TablaFilas
+from timetabling.gui.widgets.campos import (
+    Columna,
+    DialogoListaMarcable,
+    DiasSelector,
+    HoraEdit,
+    ListaMarcable,
+    TablaFilas,
+)
 from timetabling.gui.widgets.cuadricula_franjas import CuadriculaFranjas
 from timetabling.gui.widgets.disponibilidad import (
     ALTO_FILA,
@@ -151,3 +158,30 @@ def test_tabla_de_filas_y_dias(qtbot: Any) -> None:
     hora = HoraEdit(615)
     qtbot.addWidget(hora)
     assert hora.minutos() == 615 and hora.text() == "10:15"
+
+
+def test_lista_marcable_crece_y_se_amplia(qtbot: Any) -> None:
+    lista = ListaMarcable()
+    qtbot.addWidget(lista)
+    lista.poner([(i, f"Opción {i}") for i in range(3)], [])
+    alto_pocas = lista.height()
+    lista.poner([(i, f"Opción {i}") for i in range(30)], [1])
+    fila = lista.sizeHintForRow(0)
+    assert lista.height() > alto_pocas
+    assert lista.height() >= ListaMarcable.FILAS_MAX * fila
+    assert lista.height() < 30 * fila  # con muchas opciones se desplaza en vez de crecer sin fin
+
+    dialogo = DialogoListaMarcable(lista)
+    qtbot.addWidget(dialogo)
+    assert dialogo.lista.marcados() == [1]
+    dialogo.filtro.setText("opción 2")  # 2, 20…29
+    dialogo._marcar_visibles(True)
+    assert dialogo.lista.marcados() == [1, 2, *range(20, 30)]
+    dialogo.filtro.setText("")
+    dialogo._marcar_visibles(False)
+    assert dialogo.lista.marcados() == []
+
+    cambios: list[int] = []
+    lista.cambiado.connect(lambda: cambios.append(1))
+    lista.marcar([5, 7])
+    assert lista.marcados() == [5, 7] and cambios
