@@ -389,3 +389,55 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   Validación, Generar, Resultados e Inicio siguen activas, y no se puede abrir otro proyecto.
 - Las asignaciones fijas solo vienen de los datos hasta F8 (luego también de las clases
   bloqueadas del editor).
+
+## F8 Editor manual
+
+### 2026-11-24 · Operaciones reversibles del borrador
+- **Decisión:** toda edición es una `Operacion` (colocaciones que se quitan y que se ponen) con
+  `inversa()`; el `QUndoStack` solo envuelve operaciones. Mover, intercambiar, bloquear,
+  cambiar profesor y aceptar una reparación son operaciones de este tipo. Cambiar el profesor
+  cambia **todas** las ocurrencias de la clase (continuidad, D6).
+- Cada operación se guarda al instante reescribiendo la solución borrador en una transacción
+  (las asignaciones de un borrador no tienen suplencias que conservar).
+
+### 2026-11-24 · Horas por clase en el modelo
+- **Contexto:** la reparación trabaja sobre borradores incompletos; con D1 = horas semanales,
+  las clases fijas a medio colocar volverían infactible el modelo.
+- **Decisión:** `ConstructorModelo(horas=…)` / `OpcionesResolucion.horas` permiten fijar cuántas
+  horas debe tener cada clase; la reparación conserva las que ya tiene cada clase (+1 para la
+  que se coloca).
+
+### 2026-11-24 · Vecindario de la reparación
+- **Decisión:** el vecindario del día son las clases con alguna colocación ese día que
+  comparten grupo, profesor o tipo de espacio con la clase movida; esas clases quedan libres
+  en toda la semana. Si no hay solución en 3 s, se amplía a todas las clases de esos grupos y
+  profesores (5 s). Las bloqueadas no se mueven nunca. Medido en el mediano: ~1,3 s.
+
+### 2026-11-24 · Interacción en la rejilla
+- **Decisión:** clic en una clase la toma; clic en otra celda la suelta ahí; también se
+  arrastra. Alt+flechas mueve la clase seleccionada; Supr la devuelve al panel; Ctrl+L
+  bloquea; Ctrl+Z / Ctrl+Y deshacen y rehacen; doble clic cambia el profesor. Al soltar en una
+  celda inválida ocupada por una sola clase, si el intercambio deja ambas válidas se ofrece
+  «Intercambiar»; si no, «Colocar y reacomodar lo mínimo» (con vista previa). En modo
+  flexible se ofrece colocarla con conflictos (queda marcada con ⚠).
+- Al soltar una tarjeta de una clase sin profesor se elige entre los candidatos válidos en el
+  orden de §11.4 (sin «preferible no», menos clases ese día, nombre).
+- Las vistas por profesor y espacio y la vista maestra muestran un nivel a la vez (las celdas
+  son franjas de ese nivel). «Buscar suplente…» queda desactivado hasta F10.
+
+### 2026-11-24 · «Completar el resto» y fijas al generar
+- **Decisión:** el cálculo corre en otro hilo con una copia de los datos; el nuevo borrador se
+  guarda en el hilo de la interfaz (SQLite no admite usar la conexión desde otro hilo). Las
+  señales de las tareas en segundo plano se conectan a métodos de la pantalla (un `QObject`),
+  no a lambdas: en PySide, una lambda sin receptor se ejecutaría en el hilo del trabajador.
+- **Borrador de trabajo (§12.5):** al generar, las clases bloqueadas del borrador más reciente
+  que tenga bloqueadas (o, si no hay, del vigente) entran como fijas; Generar indica cuántas y
+  de qué borrador vienen.
+
+### 2026-11-24 · Copias de soluciones desactualizadas
+- **Decisión:** una solución desactualizada (huella de niveles distinta) no se copia todavía:
+  la «copia ajustada» necesita el mapeo por traslape del reajuste (F9).
+
+### 2026-11-24 · Ancho mínimo de la ventana
+- **Decisión:** la ventana debe caber en 800 px de ancho; una prueba lo vigila. Las filas de
+  botones largas se reparten en dos.

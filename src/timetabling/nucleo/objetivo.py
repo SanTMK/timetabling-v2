@@ -327,7 +327,7 @@ class ConstructorObjetivo:
             if c.reglas.bloque_doble != "preferido":
                 continue
             _, u = self.c.pares_de(c)
-            self._sumar("B8", sum(u.values()) - c.clase.horas_semanales % 2)
+            self._sumar("B8", sum(u.values()) - self.c.horas_de(c) % 2)
 
     # ------------------------------------------------------------------ B9, B10
 

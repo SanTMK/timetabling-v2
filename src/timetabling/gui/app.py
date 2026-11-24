@@ -29,6 +29,7 @@ from timetabling.gui.pantallas.asignaturas import PantallaAsignaturas
 from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.pantallas.clases import PantallaClases
 from timetabling.gui.pantallas.configuracion import PantallaConfiguracion
+from timetabling.gui.pantallas.editor import PantallaEditor
 from timetabling.gui.pantallas.espacios import PantallaEspacios
 from timetabling.gui.pantallas.generar import PantallaGenerar
 from timetabling.gui.pantallas.grados import PantallaGrados
@@ -54,6 +55,7 @@ PANTALLAS: tuple[type[Pantalla], ...] = (
     PantallaEspacios,
     PantallaValidacion,
     PantallaGenerar,
+    PantallaEditor,
     PantallaResultados,
 )
 

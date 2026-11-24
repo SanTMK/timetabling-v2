@@ -320,3 +320,8 @@ def test_restaurar_respaldo(con_pequeno: VentanaPrincipal) -> None:
     assert sesion.datos.niveles[0].nombre == "Cambiado"
     con_pequeno.restaurar_respaldo()
     assert sesion.datos.niveles[0].nombre == nombre
+
+
+def test_ancho_minimo_de_la_ventana(ventana: VentanaPrincipal) -> None:
+    """La ventana cabe en pantallas de 800 px de ancho (y en la virtual de «offscreen»)."""
+    assert ventana.minimumSizeHint().width() <= 800

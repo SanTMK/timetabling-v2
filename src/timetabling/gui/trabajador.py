@@ -5,6 +5,8 @@ datos para que la interfaz no se congele. La solución se guarda en el hilo de l
 recibir la señal `terminado`.
 """
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QObject, Qt, QThread, Signal
 
 from timetabling.dominio.modelos import DatosEscuela
@@ -49,7 +51,7 @@ class Trabajador(QObject):
 class Ejecucion:
     """Un trabajador corriendo en su propio hilo."""
 
-    def __init__(self, trabajador: Trabajador) -> None:
+    def __init__(self, trabajador: "Trabajador | TareaFondo") -> None:
         self.trabajador = trabajador
         self.hilo = QThread()
         trabajador.moveToThread(self.hilo)
@@ -69,3 +71,29 @@ class Ejecucion:
     def cancelar_y_esperar(self, milisegundos: int = 60_000) -> bool:
         self.trabajador.cancelar()
         return self.hilo.wait(milisegundos)
+
+
+class TareaFondo(QObject):
+    """Ejecuta una función cualquiera en segundo plano (completar, reacomodar)."""
+
+    terminado = Signal(object)
+    fallo = Signal(str)
+
+    def __init__(self, funcion: Callable[[], object], al_cancelar: Callable[[], None] | None = None
+                 ) -> None:  # fmt: skip
+        super().__init__()
+        self.funcion = funcion
+        self.al_cancelar = al_cancelar
+        self.resultado: object = None
+
+    def ejecutar(self) -> None:
+        try:
+            self.resultado = self.funcion()
+        except Exception as error:  # noqa: BLE001 - se informa en la interfaz
+            self.fallo.emit(f"{type(error).__name__}: {error}")
+            return
+        self.terminado.emit(self.resultado)
+
+    def cancelar(self) -> None:
+        if self.al_cancelar is not None:
+            self.al_cancelar()

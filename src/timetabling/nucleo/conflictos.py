@@ -6,7 +6,8 @@ de espacio sobre la línea de tiempo, para responder en menos de 2 ms por celda.
 """
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
@@ -37,6 +38,7 @@ from timetabling.nucleo.franjas import (
 )
 
 Severidad = Literal["dura", "blanda"]
+EstadoCelda = Literal["valida", "penalizada", "invalida"]
 
 
 @dataclass(frozen=True)
@@ -196,6 +198,68 @@ class Conflictos:
 
     def colocaciones_de(self, clase_id: int) -> list[Colocacion]:
         return list(self._clase.get(clase_id, []))
+
+    @contextmanager
+    def sin(self, *colocaciones: Colocacion | None) -> Iterator["Conflictos"]:
+        """Evalúa como si esas colocaciones no estuvieran (al mover o intercambiar)."""
+        quitadas = [c for c in colocaciones if c is not None]
+        for c in quitadas:
+            self.quitar(c)
+        try:
+            yield self
+        finally:
+            for c in quitadas:
+                self.agregar(c)
+
+    def estado(
+        self, clase_id: int, franja: Franja, profesor: int | None = None
+    ) -> tuple[EstadoCelda, list[Motivo]]:
+        """🟩 válida, 🟨 válida con penalización o 🟥 inválida (§12.2), con sus motivos."""
+        motivos = self.motivos(clase_id, franja, profesor)
+        if any(m.es_dura for m in motivos):
+            return "invalida", motivos
+        return ("penalizada" if motivos else "valida"), motivos
+
+    def profesor_sugerido(self, clase_id: int, franja: Franja) -> int | None:
+        """Profesor para colocar la clase en la franja: los fijos, el que ya la imparte o el
+        candidato sin motivos duros con menos motivos blandos (por nombre si empatan)."""
+        info = self.info.get(clase_id)
+        if info is None:
+            return None
+        if info.clase.profesores:
+            return info.clase.profesores[0]
+        actuales = {p for c in self._clase.get(clase_id, []) for p in c.profesores}
+        if actuales:
+            return min(actuales)
+        opciones = []
+        for p in info.posibles:
+            motivos = self._motivos_profesor(p, info, franja)
+            if not any(m.es_dura for m in motivos):
+                opciones.append((len(motivos), self._nombre(p), p))
+        return min(opciones)[2] if opciones else None
+
+    def candidatos_validos(self, clase_id: int, franja: Franja) -> list[tuple[int, list[Motivo]]]:
+        """Candidatos sin motivos duros para una clase sin profesores fijos, en el orden de
+        §11.4: sin «preferible no» primero, luego con menos clases ese día, luego por nombre."""
+        info = self.info.get(clase_id)
+        if info is None or info.clase.profesores:
+            return []
+        opciones = []
+        for p in info.posibles:
+            motivos = self._motivos_profesor(p, info, franja)
+            if any(m.es_dura for m in motivos):
+                continue
+            ese_dia = len(self._profesor.get((p, franja.dia), []))
+            opciones.append(((bool(motivos), ese_dia, self._nombre(p)), p, motivos))
+        return [(p, motivos) for _, p, motivos in sorted(opciones)]
+
+    def profesores_de(self, clase_id: int, franja: Franja) -> tuple[int, ...]:
+        """Profesores con los que se colocaría la clase en la franja."""
+        info = self.info.get(clase_id)
+        if info is not None and info.clase.profesores:
+            return tuple(info.clase.profesores)
+        sugerido = self.profesor_sugerido(clase_id, franja)
+        return (sugerido,) if sugerido is not None else ()
 
     # ------------------------------------------------------------------ textos
 

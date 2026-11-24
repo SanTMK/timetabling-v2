@@ -112,12 +112,16 @@ class ConstructorModelo:
         refinar: Iterable[str] = (),
         fijar: Iterable[Colocacion] = (),
         activas: Iterable[tuple[str, str]] | None = None,
+        horas: dict[int, int] | None = None,
     ) -> None:
         """Con `activas`, solo se imponen las restricciones de esas claves (familia, entidad
         o «*»), sin literales; las demás quedan desactivadas. Así el diagnóstico prueba
         subconjuntos con la relajación lineal completa."""
         self.datos = datos
         self.activas = set(activas) if activas is not None else None
+        self.horas = horas or {}
+        """Horas a colocar por clase (por defecto, las semanales): un borrador incompleto
+        conserva las que ya tiene."""
         self.calendario = calendario or Calendario.de(datos)
         self.modo = modo
         self.refinar = set(refinar)
@@ -289,10 +293,13 @@ class ConstructorModelo:
 
     # ------------------------------------------------------------------ D1, D2
 
+    def horas_de(self, c: ClaseModelo) -> int:
+        return self.horas.get(c.id, c.clase.horas_semanales)
+
     def _d1(self) -> None:
         for c in self.h.clases.values():
             zs = [self.h.z[(c.id, s.id)] for s in c.franjas]
-            self._r("curricular", f"clase:{c.id}", self.m.add(sum(zs) == c.clase.horas_semanales))
+            self._r("curricular", f"clase:{c.id}", self.m.add(sum(zs) == self.horas_de(c)))
 
     def _d2(self) -> None:
         """Por grupo y franja: a lo más una clase, salvo partes distintas de una división
@@ -537,7 +544,7 @@ class ConstructorModelo:
             self._r(
                 "bloque",
                 f"clase:{c.id}",
-                self.m.add(sum(u.values()) <= c.clase.horas_semanales % 2),
+                self.m.add(sum(u.values()) <= self.horas_de(c) % 2),
             )
 
     def _d12(self) -> None:

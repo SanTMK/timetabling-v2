@@ -19,7 +19,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F5 Diagnóstico | ✔ Núcleo de infactibilidad por familias y por entidad, con mensajes concretos |
 | F6 GUI de captura | ✔ Ventana principal, Inicio, Configuración, Niveles, Grados y grupos, Asignaturas, Plan, Clases, Profesores, Espacios, Validación |
 | F7 Generar y Resultados | ✔ Generar en segundo plano, Resultados con vistas por grupo, profesor y espacio, vigente, exportación a Excel |
-| F8–F12 | Pendientes |
+| F8 Editor manual | ✔ Borradores, panel «Por colocar», colores de validez, arrastrar, intercambiar, reacomodar, deshacer, bloquear, completar, sugerir |
+| F9–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -38,6 +39,10 @@ Lo que ya funciona:
 - En la interfaz, «Generar» resuelve sin congelar la ventana (con fase, mejor penalización y
   Cancelar) y «Resultados» muestra cada horario por grupo, profesor y espacio, sus
   penalizaciones y la carga docente; desde ahí se marca el vigente y se exporta a Excel.
+- El «Editor» permite armar o ajustar un horario a mano: arrastrar clases del panel
+  «Por colocar» a la rejilla, ver en verde/amarillo/rojo (✓/~/✗) dónde puede ir cada una y
+  por qué, intercambiar, «colocar y reacomodar lo mínimo», bloquear (📌) las que importan,
+  deshacer, «Completar el resto» con el generador y validar el borrador como definitivo.
 - `timetabling exportar P.horario --solucion ID --salida horario.xlsx` y
   `timetabling generar P.horario --exportar horario.xlsx` escriben el libro de Excel.
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
@@ -94,6 +99,19 @@ uv run ruff check src pruebas
 7. En Configuración ponga un tiempo límite de 30 s; en Generar pulse «Generar horario» y
    observe la fase y la penalización; luego «Ver en Resultados», elija «8°A» y «Dora Montes»
    (profesora de tres niveles), marque el horario como vigente y expórtelo a Excel.
+
+### Prueba manual del editor (F8)
+
+1. En Resultados, con el horario generado, pulse «Editar una copia»: se abre el Editor.
+2. Elija el grupo «8°A» y haga clic en una clase: las celdas se pintan ✓ (verde), ~ (amarillo)
+   o ✗ (rojo); pase el ratón sobre una roja para ver el motivo.
+3. Pulse Supr: la clase vuelve al panel «Por colocar» (Pendientes: 1). Pulse «Sugerir lugar»:
+   tres celdas llevan ★. Arrastre la tarjeta a una de ellas.
+4. Arrastre una clase sobre otra del mismo grupo: se ofrece «Intercambiar» o «Colocar y
+   reacomodar lo mínimo» con la lista de cambios antes de aplicarlos.
+5. Ctrl+Z / Ctrl+Y deshacen y rehacen; Ctrl+L bloquea (📌); Alt+flechas mueve.
+6. Quite varias clases, bloquee alguna y pulse «Completar el resto»: se abre un borrador nuevo
+   con ↻ en lo que cambió. «Validar y guardar como definitivo» lo deja como FACTIBLE.
 
 ## Integración continua
 

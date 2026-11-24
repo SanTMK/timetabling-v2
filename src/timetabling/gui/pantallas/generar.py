@@ -21,6 +21,7 @@ from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.pantallas.validacion import DESTINOS
 from timetabling.gui.trabajador import Ejecucion, Trabajador
 from timetabling.nucleo.resolver import Progreso
+from timetabling.servicios.edicion import bloqueadas_para_generar
 from timetabling.servicios.generacion import ResultadoGeneracion, opciones_de
 
 FASES = {
@@ -123,7 +124,8 @@ class PantallaGenerar(Pantalla):
             self.estado_datos.setText(
                 f"✔ Datos listos. Tiempo límite: {config.tiempo_limite_s} s · {config.hilos} hilos."
             )
-        self.fijas.setText(self.sesion.origen_fijas())
+        bloqueadas, de_donde = bloqueadas_para_generar(self.sesion)
+        self.fijas.setText(self.sesion.origen_fijas(len(bloqueadas), de_donde))
         self.boton_generar.setEnabled(not errores and not self.trabajando)
 
     # ------------------------------------------------------------------ acciones
@@ -136,6 +138,7 @@ class PantallaGenerar(Pantalla):
             return
         datos = self.sesion.datos
         opciones = opciones_de(datos)
+        opciones.fijar, _ = bloqueadas_para_generar(self.sesion)
         self._tiempo_limite = opciones.tiempo_limite_s
         trabajador = Trabajador(datos, opciones, DIAGNOSTICO_S)
         trabajador.progreso.connect(self._al_progresar)

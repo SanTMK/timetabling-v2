@@ -45,6 +45,8 @@ class OpcionesResolucion:
     """Con `False` solo se ejecuta la etapa de factibilidad."""
     criterios: Criterios | None = None
     """Prioridades a usar; por defecto, las de la configuración del proyecto."""
+    horas: dict[int, int] | None = None
+    """Horas a colocar por clase cuando no son las semanales (reparación de un borrador)."""
 
 
 @dataclass
@@ -121,7 +123,9 @@ class Resolutor:
         return fijar
 
     def construir(self) -> tuple[ModeloHorario, Objetivo | None]:
-        constructor = ConstructorModelo(self.datos, self.calendario, fijar=self._fijaciones())
+        constructor = ConstructorModelo(
+            self.datos, self.calendario, fijar=self._fijaciones(), horas=self.opciones.horas
+        )
         horario = constructor.construir()
         objetivo = None
         if self.opciones.optimizar:

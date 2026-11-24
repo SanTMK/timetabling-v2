@@ -27,6 +27,7 @@ from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.widgets.vista_horario import VistaHorario
 from timetabling.nucleo.objetivo import pesos
 from timetabling.persistencia.repositorio import ErrorSolucion
+from timetabling.servicios.edicion import ErrorEdicion, nuevo_borrador
 
 ROL = Qt.ItemDataRole.UserRole
 
@@ -82,8 +83,8 @@ class PantallaResultados(Pantalla):
         self.boton_vigente = QPushButton("Marcar &vigente")
         self.boton_eliminar = QPushButton("&Eliminar")
         self.boton_copia = QPushButton("Editar una &copia")
-        self.boton_copia.setEnabled(False)
-        self.boton_copia.setToolTip("Disponible con el editor manual (F8).")
+        self.boton_copia.setToolTip("Crea un borrador con este horario y lo abre en el Editor.")
+        self.boton_copia.clicked.connect(self.editar_copia)
         self.boton_cambios = QPushButton("Resaltar ca&mbios")
         self.boton_cambios.setEnabled(False)
         self.boton_cambios.setToolTip("Disponible con el reajuste (F9).")
@@ -155,7 +156,7 @@ class PantallaResultados(Pantalla):
         ident = self.selector.currentData()
         self.solucion = self.sesion.cargar_solucion(ident) if ident is not None else None
         hay = self.solucion is not None
-        for b in (self.boton_vigente, self.boton_eliminar, self.boton_excel):
+        for b in (self.boton_vigente, self.boton_eliminar, self.boton_excel, self.boton_copia):
             b.setEnabled(hay)
         if self.solucion is None:
             self.disposicion = None
@@ -261,6 +262,16 @@ class PantallaResultados(Pantalla):
             self.dialogos.error("Marcar vigente", str(error))
             return
         self.recargar()
+
+    def editar_copia(self) -> None:
+        if self.solucion is None or self.solucion.id is None:
+            return
+        try:
+            copia = nuevo_borrador(self.sesion, copia_de=self.solucion.id)
+        except ErrorEdicion as error:
+            self.dialogos.error("Editar una copia", str(error))
+            return
+        self.contexto.ir_a("editor", "solucion", copia.id)
 
     def eliminar(self) -> None:
         if self.solucion is None or self.solucion.id is None:

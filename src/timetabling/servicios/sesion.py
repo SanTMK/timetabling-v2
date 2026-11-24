@@ -315,12 +315,16 @@ class SesionProyecto:
     def exportar_excel(self, solucion: Solucion, ruta: Path | str) -> Path:
         return exportar_excel(self.datos, solucion, ruta)
 
-    def origen_fijas(self) -> str:
-        """Texto para la pantalla Generar: cuántas asignaciones fijas hay y de dónde vienen."""
-        fijas = len(self.datos.fijas)
-        if not fijas:
-            return "No hay asignaciones fijas."
-        return f"{fijas} asignaciones fijas, capturadas en el proyecto."
+    def origen_fijas(self, bloqueadas: int = 0, de_donde: str = "") -> str:
+        """Texto para la pantalla Generar: cuántas fijas hay y de dónde vienen (§12.5)."""
+        partes = []
+        if self.datos.fijas:
+            partes.append(f"{len(self.datos.fijas)} capturadas en el proyecto")
+        if bloqueadas:
+            partes.append(f"{bloqueadas} clases bloqueadas en «{de_donde}»")
+        if not partes:
+            return "No hay asignaciones fijas: bloquee clases en el Editor para fijarlas."
+        return "Asignaciones fijas: " + " y ".join(partes) + "."
 
     # ------------------------------------------------------------------ archivo
 
