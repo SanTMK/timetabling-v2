@@ -43,6 +43,8 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["pruebas"]
 addopts = "-ra --strict-markers"
+# Si una prueba se cuelga, se vuelcan las pilas de todos los hilos (diagnóstico en el CI).
+faulthandler_timeout = 300
 markers = [
     "lento: pruebas de punta a punta que tardan (se excluyen de la suite rápida)",
     "rendimiento: mide tiempos contra los umbrales de §2",

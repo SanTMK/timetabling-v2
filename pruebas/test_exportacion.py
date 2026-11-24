@@ -31,6 +31,7 @@ from timetabling.dominio.modelos import (
 from timetabling.ejemplo import crear_ejemplo
 from timetabling.exportacion.estilos import nombre_hoja
 from timetabling.exportacion.excel import FilaCambio, exportar_excel
+from timetabling.persistencia.repositorio import Repositorio
 from timetabling.servicios.soluciones import a_solucion
 
 
@@ -237,7 +238,12 @@ def test_cli_generar_y_exportar(tmp_path: Path) -> None:
                                  str(tmp_path / "b.xlsx")])  # fmt: skip
     assert otra.exit_code == 0, otra.output
     libro = openpyxl.load_workbook(tmp_path / "b.xlsx")
-    assert len(libro.sheetnames) == 1 + 5 + 12 + 2  # resumen, grupos, profesores, carga, leyenda
+    with Repositorio.abrir(ruta, respaldo_diario=False) as repo:
+        guardada = repo.cargar_solucion(int(identificador))
+    con_clases = {a.profesor_nombre for a in guardada.asignaciones if a.profesor_nombre}
+    # Resumen, 5 grupos, un profesor por hoja (solo los que tienen clases), carga y leyenda.
+    assert len(libro.sheetnames) == 1 + 5 + len(con_clases) + 2
+    assert con_clases <= set(libro.sheetnames)
     pdf = corredor.invoke(app, ["exportar", str(ruta), "--solucion", identificador, "--salida",
                                 str(tmp_path / "b.pdf")])  # fmt: skip
     assert pdf.exit_code == 2 and "PDF" in pdf.output
