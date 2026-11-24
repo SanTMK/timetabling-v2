@@ -276,8 +276,11 @@ def test_recientes_y_geometria(
     assert ventana.recientes()[0] == str(ruta)
     # El tamaño mínimo depende de las fuentes de cada sistema: se pide uno por encima del mínimo
     # (si no, cada sistema lo recorta distinto al restaurar) y se compara con el tamaño real.
+    # Además debe caber en la pantalla (la de macOS en CI es baja).
     minimo = ventana.minimumSizeHint().expandedTo(ventana.minimumSize())
-    ventana.resize(max(780, minimo.width() + 40), max(520, minimo.height() + 40))
+    marco = ventana.frameGeometry().height() - ventana.height()
+    alto_libre = ventana.screen().availableGeometry().height() - marco - 10
+    ventana.resize(max(780, minimo.width() + 40), min(max(520, minimo.height() + 40), alto_libre))
     tamano = (ventana.width(), ventana.height())
     assert ventana.close()
     from pruebas.gui_utiles import DialogosFalsos

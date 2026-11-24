@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -140,7 +141,13 @@ class PantallaSuplencias(Pantalla):
         self.boton_eliminar_ausencia = QPushButton("Eliminar ausencia")
         self.boton_eliminar_ausencia.clicked.connect(self.eliminar_ausencia)
         capa_izq.addWidget(self.boton_eliminar_ausencia)
-        divisor.addWidget(izquierda)
+        # Desplazable: así la columna no impone su alto como mínimo de la ventana.
+        desplazable = QScrollArea()
+        desplazable.setWidgetResizable(True)
+        desplazable.setFrameShape(QScrollArea.Shape.NoFrame)
+        desplazable.setWidget(izquierda)
+        desplazable.setMinimumWidth(izquierda.minimumSizeHint().width() + 16)
+        divisor.addWidget(desplazable)
 
         # ---------------------------------------------------------------- derecha
         self.pestanas = QTabWidget()
