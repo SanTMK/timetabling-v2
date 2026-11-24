@@ -414,7 +414,11 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   búsqueda recibe lo que queda tras preparar el modelo, menos 0,5 s de margen; si no hay
   solución, se
   amplía a todas las clases de esos grupos y profesores (5 s). Las bloqueadas no se mueven
-  nunca. Medido en el mediano: ~1,3 s en una Mac M-series.
+  nunca.
+- **Dominios reducidos:** las clases con todas sus horas fijadas (las de fuera del vecindario)
+  solo reciben variables para esas franjas y profesores. El modelo de la reparación pasa de
+  decenas de miles de variables a unos pocos cientos: en el mediano, de ~1,3 s a ~0,5 s (el
+  runner de Windows llegaba a 3,7 s con el modelo completo).
 
 ### 2026-11-24 · Interacción en la rejilla
 - **Decisión:** clic en una clase la toma; clic en otra celda la suelta ahí; también se

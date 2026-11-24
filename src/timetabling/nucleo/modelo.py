@@ -122,6 +122,7 @@ class ConstructorModelo:
         self.horas = horas or {}
         """Horas a colocar por clase (por defecto, las semanales): un borrador incompleto
         conserva las que ya tiene."""
+        self._dominios: dict[int, tuple[set[str], set[int]]] = {}
         self.calendario = calendario or Calendario.de(datos)
         self.modo = modo
         self.refinar = set(refinar)
@@ -133,6 +134,27 @@ class ConstructorModelo:
         self._apagada: Lit | None = None
         self._no_disponibles: list[tuple[int, int, str]] = []
         self._prohibidas: list[tuple[int, str]] = []
+
+    def _dominios_fijados(self) -> dict[int, tuple[set[str], set[int]]]:
+        """Clases con **todas** sus horas en `fijar` (reparación: lo que queda fuera del
+        vecindario): su dominio se reduce a esas franjas y profesores, así el modelo es mucho
+        más pequeño. Las restricciones de `fijar` (D13) siguen imponiéndolas."""
+        por_clase: dict[int, list[Colocacion]] = defaultdict(list)
+        for c in self.fijar:
+            por_clase[c.clase_id].append(c)
+        clases = por_id(self.datos.clases)
+        dominios: dict[int, tuple[set[str], set[int]]] = {}
+        for clase_id, lista in por_clase.items():
+            clase = clases.get(clase_id)
+            if clase is None:
+                continue
+            horas = self.horas.get(clase_id, clase.horas_semanales)
+            if len({c.franja_id for c in lista}) >= horas:
+                dominios[clase_id] = (
+                    {c.franja_id for c in lista},
+                    {p for c in lista for p in c.profesores},
+                )
+        return dominios
 
     # ------------------------------------------------------------------ registro
 
@@ -162,6 +184,7 @@ class ConstructorModelo:
     # ------------------------------------------------------------------ construcción
 
     def construir(self) -> ModeloHorario:
+        self._dominios = self._dominios_fijados()
         self._clases()
         self._variables()
         self._poda_como_restricciones()
@@ -193,12 +216,17 @@ class ConstructorModelo:
             asignatura = asignaturas[clase.asignatura_id]
             reglas = asignatura.reglas_efectivas(nivel_id)
             utiles = self.calendario.utiles_comunes(ids)  # D14
+            dominio = self._dominios.get(clase.id)
+            if dominio is not None:  # todas sus horas están fijadas: solo esas franjas
+                utiles = [f for f in utiles if f.id in dominio[0]]
             if self.podar:
                 franjas = [f for f in utiles if not prohibida(reglas, f)]  # D15
             else:
                 franjas = list(utiles)
                 self._prohibidas += [(clase.id, f.id) for f in utiles if prohibida(reglas, f)]
             posibles = tuple(profesores_posibles(self.datos, clase))  # D4
+            if dominio is not None and dominio[1] and not clase.profesores:
+                posibles = tuple(p for p in posibles if p in dominio[1]) or posibles
             if clase.profesores or len(posibles) == 1:
                 fijos, candidatos = posibles, ()
             else:
