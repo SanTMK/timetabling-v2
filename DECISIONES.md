@@ -481,3 +481,30 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   si no tiene, con el vigente (si es otra). Resultados muestra el resumen, la pestaña Cambios y
   «Resaltar cambios» (↻ en negrita); la hoja `Cambios` de Excel aparece cuando hay con qué
   comparar. El reajuste no se marca vigente solo: el usuario lo revisa y lo marca.
+
+### 2026-11-24 · Suplencias: qué ocupa a un candidato
+- **Decisión:** el candidato no debe tener, ese día, clase del vigente ni otra suplencia que se
+  le cruce; el margen de traslado se aplica solo entre niveles distintos (igual que D9). Si el
+  candidato tiene una ausencia que toca esa fecha y hora, no aparece; y las clases de un
+  profesor ausente en esa fecha no lo ocupan. Se trabaja con las horas guardadas de la
+  solución (día, inicio, fin), así sirve aunque el vigente esté desactualizado.
+- «Titular» = habilitado para la asignatura y **todos** los grados de la clase; «suplente» =
+  marcado en `suplencia_asignaturas` y `suplencia_grados` para ellos. Los inactivos no cuentan.
+- Orden (§11.4): titular, sin «preferible no», menos clases y suplencias ese día, menos
+  suplencias en el mes (del suplente, por fecha de la suplencia), nombre.
+
+### 2026-11-24 · Suplencias: registro y conteo
+- **Decisión:** una suplencia se identifica por (fecha, asignación del vigente); asignar de
+  nuevo la misma clase reemplaza el registro. «Sin cubrir» es una suplencia con
+  `suplente_id` nulo; «Quitar» la borra y la clase vuelve a «Pendiente». Las clases afectadas
+  se calculan cada vez desde las ausencias y el vigente (no se guardan).
+- Eliminar una ausencia borra las suplencias de sus clases que ya no tengan otra ausencia que
+  las justifique.
+- Conteo mensual: por profesor, **suplencias realizadas** (como suplente), **sus clases
+  cubiertas** por otros y **sus clases sin cubrir**. Las pendientes no cuentan.
+- La asignación «con un clic» (§14): el mejor candidato queda preseleccionado y basta pulsar
+  «Asignar» (o doble clic en otro candidato).
+- «Buscar suplente…» del editor lista, sin fecha, quién podría cubrir la clase en esa franja
+  según el borrador actual; las suplencias con fecha se registran en la pantalla Suplencias.
+- El reporte del día en **PDF** llega con F12 (`pdf.py`, §16.2); en F10 se exporta a Excel
+  (una hoja carta horizontal ajustada a una página).

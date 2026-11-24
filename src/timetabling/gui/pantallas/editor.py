@@ -816,6 +816,19 @@ class PantallaEditor(Pantalla):
             self.tomada = None
             self.cambiar_profesor(contenido.colocaciones[0].clase_id)
 
+    def buscar_suplente(self, clase_id: int, franja_id: str) -> str:
+        """Quién podría cubrir la clase en esa franja (§11.4), en orden."""
+        if self.edicion is None:
+            return ""
+        lista = self.edicion.suplentes(clase_id, franja_id)
+        franja = self.sesion.calendario.franjas[franja_id]
+        encabezado = f"Pueden cubrir la clase {franja.texto()}:"
+        if not lista:
+            encabezado = f"Nadie puede cubrir la clase {franja.texto()}."
+        renglones = [f"{i}. {c.nombre} ({c.detalle})" for i, c in enumerate(lista, start=1)]
+        pie = "Para registrar una suplencia con fecha, use la pantalla Suplencias."
+        return "\n".join([encabezado, *renglones, "", pie])
+
     def porque_no(self, franja_id: str) -> str:
         """«¿Por qué no puede ir en…?»: motivos de la clase tomada en esa franja."""
         if self.edicion is None or self.tomada is None:
@@ -838,9 +851,12 @@ class PantallaEditor(Pantalla):
             menu.addAction("Desbloquear" if c.bloqueada else "📌 Bloquear", self.bloquear_seleccion)
             menu.addAction("Quitar (Supr)", self.quitar_seleccion)
             menu.addAction("Cambiar profesor…", lambda: self.cambiar_profesor(c.clase_id))
-            suplente = menu.addAction("Buscar suplente…")
-            suplente.setEnabled(False)
-            suplente.setToolTip("Disponible con las suplencias (F10).")
+            menu.addAction(
+                "Buscar suplente…",
+                lambda: self.dialogos.informar(
+                    "Buscar suplente", self.buscar_suplente(c.clase_id, c.franja_id)
+                ),
+            )
         franja = self.sesion.calendario.franjas[franja_id]
         menu.addAction(
             f"¿Por qué no puede ir en {franja.texto()}?",

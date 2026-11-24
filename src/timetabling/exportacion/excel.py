@@ -8,7 +8,7 @@ ajustada a una página.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +19,8 @@ from xlsxwriter.worksheet import Worksheet
 from timetabling.dominio.colores import GRIS_RECESO, color_texto
 from timetabling.dominio.cuadricula import Cuadricula, Disposicion
 from timetabling.dominio.estadisticas import carga_docente
-from timetabling.dominio.modelos import NOMBRES_CRITERIOS, DatosEscuela, Solucion
-from timetabling.dominio.tiempo import NOMBRES_DIAS
+from timetabling.dominio.modelos import NOMBRES_CRITERIOS, Ausencia, DatosEscuela, Solucion
+from timetabling.dominio.tiempo import DIAS, NOMBRES_DIAS, texto_rango
 from timetabling.exportacion.estilos import nombre_hoja
 
 NOMBRES_RESUMEN: dict[str, str] = {**NOMBRES_CRITERIOS, "total": "Penalización total"}
@@ -203,6 +203,79 @@ def exportar_excel(
         if cambios is not None:
             _cambios(libro, cambios)
         _leyenda(libro, solucion)
+    finally:
+        libro.cerrar()
+    return ruta
+
+
+# ---------------------------------------------------------------------------
+# Suplencias del día (§14)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FilaSuplencia:
+    """Un renglón del reporte «Suplencias del día»."""
+
+    horas: str
+    asignatura: str
+    grupos: str
+    ausente: str
+    suplente: str
+    estado: str
+    nota: str
+
+
+def texto_fecha(fecha: date) -> str:
+    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+             "septiembre", "octubre", "noviembre", "diciembre"]  # fmt: skip
+    dia = NOMBRES_DIAS[DIAS[fecha.weekday()]].lower()
+    return f"{dia} {fecha.day} de {meses[fecha.month - 1]} de {fecha.year}"
+
+
+def exportar_suplencias_del_dia(
+    escuela: str,
+    fecha: date,
+    filas: Sequence[FilaSuplencia],
+    ausencias: Sequence[tuple[str, Ausencia]],
+    ruta: Path | str,
+) -> Path:
+    """Una hoja imprimible (carta horizontal, 1×1) con las suplencias de la fecha."""
+    ruta = Path(ruta)
+    libro = _Libro(ruta, escuela)
+    try:
+        hoja = libro.hoja("Suplencias del día")
+        titulo = libro.formato(bold=True, font_size=12, border=0, text_wrap=False)
+        sin_borde = libro.formato(border=0, text_wrap=False)
+        encabezado = libro.formato(bold=True, align="center", bg_color="#EEEEEE")
+        normal = libro.formato()
+        hoja.write(0, 0, f"Suplencias del {texto_fecha(fecha)}", titulo)
+        renglon = 1
+        for nombre, a in ausencias:
+            horas = "todo el día"
+            if a.desde is not None and a.hasta is not None:
+                horas = texto_rango(a.desde, a.hasta)
+            motivo = f" — {a.motivo}" if a.motivo else ""
+            hoja.write(renglon, 0, f"Ausente: {nombre} ({horas}){motivo}", sin_borde)
+            renglon += 1
+        renglon += 1
+        columnas = ["Horario", "Asignatura", "Grupos", "Ausente", "Suplente", "Estado", "Nota"]
+        for j, texto in enumerate(columnas):
+            hoja.write(renglon, j, texto, encabezado)
+        for i, f in enumerate(filas, start=renglon + 1):
+            valores = [f.horas, f.asignatura, f.grupos, f.ausente, f.suplente or "—", f.estado,
+                       f.nota]  # fmt: skip
+            for j, valor in enumerate(valores):
+                formato = normal
+                if j == 5 and f.estado != "Cubierta":
+                    formato = libro.formato(bold=True, font_color="#B71C1C")
+                hoja.write(i, j, valor, formato)
+        if not filas:
+            hoja.write(renglon + 1, 0, "No hay clases afectadas en esta fecha.", sin_borde)
+        hoja.set_column(0, 0, 13)
+        hoja.set_column(1, 4, 22)
+        hoja.set_column(5, 5, 12)
+        hoja.set_column(6, 6, 30)
     finally:
         libro.cerrar()
     return ruta

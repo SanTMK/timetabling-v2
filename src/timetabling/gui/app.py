@@ -38,6 +38,7 @@ from timetabling.gui.pantallas.niveles import PantallaNiveles
 from timetabling.gui.pantallas.plan import PantallaPlan
 from timetabling.gui.pantallas.profesores import PantallaProfesores
 from timetabling.gui.pantallas.resultados import PantallaResultados
+from timetabling.gui.pantallas.suplencias import PantallaSuplencias
 from timetabling.gui.pantallas.validacion import PantallaValidacion
 from timetabling.persistencia.migraciones import ErrorProyecto, ErrorProyectoAnterior
 from timetabling.servicios.sesion import SesionProyecto
@@ -57,6 +58,7 @@ PANTALLAS: tuple[type[Pantalla], ...] = (
     PantallaGenerar,
     PantallaEditor,
     PantallaResultados,
+    PantallaSuplencias,
 )
 
 

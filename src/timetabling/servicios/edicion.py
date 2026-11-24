@@ -25,6 +25,7 @@ from timetabling.nucleo.resolver import (
     Resolutor,
     ResultadoResolucion,
 )
+from timetabling.nucleo.suplencias import Candidato, candidatos
 from timetabling.nucleo.verificador import ResultadoVerificacion, verificar
 from timetabling.persistencia.migraciones import ErrorProyecto
 from timetabling.servicios.sesion import SesionProyecto
@@ -104,6 +105,32 @@ class EdicionBorrador:
             penalizacion=total,
             violaciones=[v.mensaje for v in verificacion.violaciones],
         )
+
+    def suplentes(self, clase_id: int, franja_id: str) -> list[Candidato]:
+        """«Buscar suplente…» (§12, §11.4): quién podría cubrir esa clase en esa franja según el
+        borrador actual, sin fecha (las suplencias con fecha se registran en Suplencias)."""
+        colocacion = self.borrador.buscar(clase_id, franja_id)
+        if colocacion is None:
+            return []
+        solucion = a_solucion(self.datos, self.borrador.colocaciones, nombre="",
+                              estado=EstadoSolucion.FACTIBLE, origen="manual",
+                              calendario=self.calendario)  # fmt: skip
+        franja = self.calendario.franjas[franja_id]
+        clave = (franja.nivel_id, franja.dia, franja.indice)
+        asignaciones = [a.model_copy(update={"id": i}) for i, a in enumerate(solucion.asignaciones)]
+        solucion = solucion.model_copy(update={"asignaciones": asignaciones})
+        resultado: dict[int, Candidato] = {}
+        for a in asignaciones:
+            f = solucion.franjas[a.franja]
+            if (
+                a.clase_id == clase_id
+                and a.id is not None
+                and (f.nivel_id, f.dia, f.indice) == clave
+            ):
+                for c in candidatos(self.datos, solucion, a.id):
+                    resultado.setdefault(c.profesor_id, c)
+        # Con varios profesores en la clase, los propios no cuentan como suplentes.
+        return [c for c in resultado.values() if c.profesor_id not in colocacion.profesores]
 
     def verificacion(self) -> ResultadoVerificacion:
         return verificar(

@@ -21,7 +21,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F7 Generar y Resultados | ✔ Generar en segundo plano, Resultados con vistas por grupo, profesor y espacio, vigente, exportación a Excel |
 | F8 Editor manual | ✔ Borradores, panel «Por colocar», colores de validez, arrastrar, intercambiar, reacomodar, deshacer, bloquear, completar, sugerir |
 | F9 Reajuste y comparación | ✔ Reajustar el vigente con cambios mínimos, mapeo por traslape, comparación por asignación mínima, hoja Cambios |
-| F10–F12 | Pendientes |
+| F10 Suplencias | ✔ Ausencias (completas o parciales), clases afectadas del vigente, candidatos en orden, «sin cubrir», conteo mensual y reporte del día en Excel |
+| F11–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -104,6 +105,16 @@ uv run ruff check src pruebas
 7. En Configuración ponga un tiempo límite de 30 s; en Generar pulse «Generar horario» y
    observe la fase y la penalización; luego «Ver en Resultados», elija «8°A» y «Dora Montes»
    (profesora de tres niveles), marque el horario como vigente y expórtelo a Excel.
+
+### Prueba manual de las suplencias (F10)
+
+1. Con un horario vigente, abra Suplencias y elija un lunes en el calendario.
+2. En «Registrar ausencia» elija un profesor con clases ese día, escriba un motivo y pulse
+   «Registrar ausencia»: aparece la lista de clases afectadas y el día queda en negritas.
+3. Elija una clase: el primer candidato ya está seleccionado; pulse «Asignar». Marque otra
+   como «Sin cubrir». Revise «Conteo del mes».
+4. Pulse «Exportar el día a Excel…» y abra el archivo: una hoja carta horizontal.
+5. En el Editor, clic derecho sobre una clase → «Buscar suplente…».
 
 ### Prueba manual del reajuste (F9)
 
