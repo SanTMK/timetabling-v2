@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from timetabling.dominio.comparacion import Comparacion
 from timetabling.dominio.cuadricula import Disposicion
 from timetabling.dominio.estadisticas import carga_docente
 from timetabling.dominio.modelos import NOMBRES_CRITERIOS, Solucion
@@ -68,6 +69,7 @@ class PantallaResultados(Pantalla):
         super().__init__(contexto)
         self.solucion: Solucion | None = None
         self.disposicion: Disposicion | None = None
+        self.comparacion: Comparacion | None = None
         capa = QVBoxLayout(self)
         capa.addWidget(QLabel(f"<h2>{self.titulo}</h2>"))
         superior = QHBoxLayout()
@@ -86,8 +88,11 @@ class PantallaResultados(Pantalla):
         self.boton_copia.setToolTip("Crea un borrador con este horario y lo abre en el Editor.")
         self.boton_copia.clicked.connect(self.editar_copia)
         self.boton_cambios = QPushButton("Resaltar ca&mbios")
-        self.boton_cambios.setEnabled(False)
-        self.boton_cambios.setToolTip("Disponible con el reajuste (F9).")
+        self.boton_cambios.setCheckable(True)
+        self.boton_cambios.setToolTip(
+            "Marca con ↻ lo que cambió respecto a la solución de partida o al vigente."
+        )
+        self.boton_cambios.toggled.connect(lambda _: self._elegir())
         self.boton_excel = QPushButton("Exportar a E&xcel…")
         self.boton_pdf = QPushButton("Exportar a &PDF…")
         self.boton_pdf.setEnabled(False)
@@ -115,7 +120,13 @@ class PantallaResultados(Pantalla):
         self.penalizaciones = _tabla(["Criterio", "Valor", "Peso", "Ponderado"])
         self.carga = _tabla(["Profesor", "Minutos", "Mínimo", "Máximo", "% del máximo", "Días",
                              "Minutos de hueco"])  # fmt: skip
-        cambios = QLabel("La comparación con el horario vigente llega con el reajuste (F9).")
+        cambios = QWidget()
+        capa_cambios = QVBoxLayout(cambios)
+        self.resumen_cambios = QLabel()
+        self.resumen_cambios.setWordWrap(True)
+        capa_cambios.addWidget(self.resumen_cambios)
+        self.tabla_cambios = _tabla(["Clase", "Antes", "Después", "Cambio"])
+        capa_cambios.addWidget(self.tabla_cambios, 1)
         self.pestanas.addTab(self.por_grupo, "Por grupo")
         self.pestanas.addTab(self.por_profesor, "Por profesor")
         self.pestanas.addTab(self.por_espacio, "Por espacio")
@@ -166,9 +177,21 @@ class PantallaResultados(Pantalla):
                 pestana.vista.mostrar(None)
             self.penalizaciones.setRowCount(0)
             self.carga.setRowCount(0)
+            self.comparacion = None
+            self.boton_cambios.setEnabled(False)
+            self._llenar_cambios(None)
             return
         s = self.solucion
-        self.disposicion = Disposicion(s, self.sesion.datos)
+        comparada = self.sesion.comparacion_de(s)
+        self.comparacion = comparada[1] if comparada else None
+        marcas = (
+            self.comparacion.marcas()
+            if self.comparacion is not None and self.boton_cambios.isChecked()
+            else set()
+        )
+        self.disposicion = Disposicion(s, self.sesion.datos, cambiadas=marcas)
+        self.boton_cambios.setEnabled(self.comparacion is not None)
+        self._llenar_cambios(comparada)
         partes = [
             f"<b>{s.estado.value}</b> · {s.origen} · {s.tiempo_s:.1f} s",
             f"{len({(a.clase_id, a.franja) for a in s.asignaciones})} clases colocadas",
@@ -184,6 +207,8 @@ class PantallaResultados(Pantalla):
             )
         if s.violaciones:
             partes.append(f"⚠ {len(s.violaciones)} violaciones")
+        if comparada is not None:
+            partes.append(f"respecto a «{comparada[0].nombre}»: {comparada[1].resumen()}")
         self.info.setText(" · ".join(partes))
         self._llenar_selector(self.por_grupo, [(g, g) for g in self.disposicion.grupos()])
         self._llenar_selector(self.por_profesor, [(p, p) for p in self.disposicion.profesores()])
@@ -241,6 +266,28 @@ class PantallaResultados(Pantalla):
             textos = [f"{criterio} {nombre}", f"{valor:g}", f"{peso:g}", f"{valor * peso:g}"]
             for j, texto in enumerate(textos):
                 self.penalizaciones.setItem(i, j, QTableWidgetItem(texto))
+
+    def _llenar_cambios(self, comparada: tuple[Solucion, Comparacion] | None) -> None:
+        if comparada is None:
+            self.resumen_cambios.setText(
+                "No hay con qué comparar: esta solución no partió de otra y no hay otro vigente."
+            )
+            self.tabla_cambios.setRowCount(0)
+            return
+        referencia, comparacion = comparada
+        self.resumen_cambios.setText(
+            f"Diferencias respecto a «{referencia.nombre}»: {comparacion.resumen()}"
+        )
+        self.tabla_cambios.setRowCount(len(comparacion.cambios))
+        for i, cambio in enumerate(comparacion.cambios):
+            valores = [
+                cambio.clase,
+                cambio.antes.texto() if cambio.antes else "—",
+                cambio.despues.texto() if cambio.despues else "—",
+                cambio.descripcion,
+            ]
+            for j, valor in enumerate(valores):
+                self.tabla_cambios.setItem(i, j, QTableWidgetItem(valor))
 
     def _llenar_carga(self, s: Solucion) -> None:
         cargas = carga_docente(s, self.sesion.datos)

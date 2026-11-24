@@ -17,6 +17,7 @@ from timetabling.dominio.clases import (
     profesores_posibles,
     sincronizar_con_plan,
 )
+from timetabling.dominio.comparacion import Comparacion, comparar
 from timetabling.dominio.modelos import (
     Clase,
     Configuracion,
@@ -29,7 +30,7 @@ from timetabling.dominio.modelos import (
     Solucion,
     por_id,
 )
-from timetabling.exportacion.excel import exportar_excel
+from timetabling.exportacion.excel import FilaCambio, exportar_excel
 from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.validacion import Problema, validar
 from timetabling.persistencia.archivo import Aviso
@@ -312,8 +313,40 @@ class SesionProyecto:
     def desactualizada(self, solucion: ResumenSolucion | Solucion) -> bool:
         return solucion.huella_niveles != self.datos.huella_niveles()
 
+    def referencia_de(self, solucion: Solucion) -> Solucion | None:
+        """Con qué se compara una solución (§13.5): la de la que partió (`base_id`) o, si no
+        tiene, el vigente (si es otra)."""
+        if solucion.base_id is not None:
+            try:
+                return self.cargar_solucion(solucion.base_id)
+            except KeyError:
+                pass
+        vigente = self.vigente()
+        if vigente is not None and vigente.id != solucion.id:
+            return self.cargar_solucion(vigente.id)
+        return None
+
+    def comparacion_de(self, solucion: Solucion) -> tuple[Solucion, Comparacion] | None:
+        referencia = self.referencia_de(solucion)
+        if referencia is None:
+            return None
+        return referencia, comparar(referencia, solucion)
+
     def exportar_excel(self, solucion: Solucion, ruta: Path | str) -> Path:
-        return exportar_excel(self.datos, solucion, ruta)
+        """Exporta con la hoja `Cambios` si hay con qué comparar."""
+        comparada = self.comparacion_de(solucion)
+        cambios = None
+        if comparada is not None:
+            cambios = [
+                FilaCambio(
+                    c.clase,
+                    c.antes.texto() if c.antes else "—",
+                    c.despues.texto() if c.despues else "—",
+                    c.descripcion,
+                )
+                for c in comparada[1].cambios
+            ]
+        return exportar_excel(self.datos, solucion, ruta, cambios=cambios)
 
     def origen_fijas(self, bloqueadas: int = 0, de_donde: str = "") -> str:
         """Texto para la pantalla Generar: cuántas fijas hay y de dónde vienen (§12.5)."""

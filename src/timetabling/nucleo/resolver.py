@@ -137,11 +137,24 @@ class Resolutor:
 
     @staticmethod
     def _pistas(horario: ModeloHorario, base: Iterable[Colocacion]) -> None:
-        elegidas = {(c.clase_id, c.franja_id) for c in base}
-        if not elegidas:
+        """Pista completa desde la base: dónde ocurre cada clase (z) y quién la da (x, y). Una
+        pista solo de z deja libre al profesor y la primera solución se aleja de la base."""
+        base = list(base)
+        if not base:
             return
-        for (clase_id, franja_id), z in horario.z.items():  # z es única por clave
+        elegidas = {(c.clase_id, c.franja_id) for c in base}
+        con_profesor = {(c.clase_id, p, c.franja_id) for c in base for p in c.profesores}
+        a_cargo = {(c.clase_id, p) for c in base for p in c.profesores}
+        vistas: set[int] = set()
+        for (clase_id, franja_id), z in horario.z.items():
+            vistas.add(z.index)
             horario.modelo.add_hint(z, (clase_id, franja_id) in elegidas)
+        for clave, x in horario.x.items():
+            if x.index not in vistas:  # en las clases con profesor fijo, x es la misma z
+                vistas.add(x.index)
+                horario.modelo.add_hint(x, clave in con_profesor)
+        for clave, y in horario.y.items():
+            horario.modelo.add_hint(y, clave in a_cargo)
 
     def _solver_nuevo(self, segundos: float, primera: bool) -> cp_model.CpSolver:
         solver = cp_model.CpSolver()

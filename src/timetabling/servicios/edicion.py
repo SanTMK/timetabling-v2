@@ -28,7 +28,7 @@ from timetabling.nucleo.resolver import (
 from timetabling.nucleo.verificador import ResultadoVerificacion, verificar
 from timetabling.persistencia.migraciones import ErrorProyecto
 from timetabling.servicios.sesion import SesionProyecto
-from timetabling.servicios.soluciones import a_colocaciones, a_solucion
+from timetabling.servicios.soluciones import a_colocaciones, a_solucion, mapear_solucion
 
 
 class ErrorEdicion(ErrorProyecto):
@@ -211,19 +211,23 @@ def nuevo_borrador(
     copia_de: int | None = None,
     origen: OrigenSolucion | None = None,
 ) -> Solucion:
-    """Un borrador vacío o la copia de una solución (las generadas no se editan, §12.1)."""
+    """Un borrador vacío o la copia de una solución (las generadas no se editan, §12.1). Si la
+    solución está desactualizada, la copia se ajusta por traslape (§5.3)."""
     colocaciones: list[Colocacion] = []
     base_id = None
+    nota = ""
     if copia_de is not None:
         original = sesion.cargar_solucion(copia_de)
-        if sesion.desactualizada(original):
-            raise ErrorEdicion(
-                "Esa solución se hizo con otra configuración de niveles; su copia ajustada llega "
-                "con el reajuste."
-            )
-        colocaciones = a_colocaciones(original)
+        mapeo = mapear_solucion(original, sesion.datos, sesion.calendario)
+        colocaciones = mapeo.colocaciones
         base_id = original.id
-        nombre = nombre if nombre != "Borrador" else f"Copia de {original.nombre}"
+        ajustada = sesion.desactualizada(original)
+        prefijo = "Copia ajustada de" if ajustada else "Copia de"
+        nombre = nombre if nombre != "Borrador" else f"{prefijo} {original.nombre}"
+        if ajustada:
+            nota = "Copia ajustada por traslape a la configuración actual de niveles."
+        if mapeo.sin_correspondencia:
+            nota += f" {len(mapeo.sin_correspondencia)} clases sin correspondencia."
     solucion = a_solucion(
         sesion.datos,
         colocaciones,
@@ -232,6 +236,7 @@ def nuevo_borrador(
         origen=origen or ("editado" if copia_de is not None else "manual"),
         calendario=sesion.calendario,
         base_id=base_id,
+        nota=nota.strip(),
     )
     return sesion.guardar_solucion(solucion)
 

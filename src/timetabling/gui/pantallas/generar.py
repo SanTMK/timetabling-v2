@@ -16,13 +16,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from timetabling.dominio.modelos import EstadoSolucion
+from timetabling.dominio.comparacion import comparar
+from timetabling.dominio.modelos import EstadoSolucion, Solucion
 from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.pantallas.validacion import DESTINOS
 from timetabling.gui.trabajador import Ejecucion, Trabajador
-from timetabling.nucleo.resolver import Progreso
+from timetabling.nucleo.resolver import OpcionesResolucion, Progreso
 from timetabling.servicios.edicion import bloqueadas_para_generar
 from timetabling.servicios.generacion import ResultadoGeneracion, opciones_de
+from timetabling.servicios.reajuste import completar_solucion_de_reajuste, preparar_reajuste
+from timetabling.servicios.soluciones import Mapeo
 
 FASES = {
     "construyendo": "Construyendo el modelo…",
@@ -54,8 +57,10 @@ class PantallaGenerar(Pantalla):
         botones = QHBoxLayout()
         self.boton_generar = QPushButton("&Generar horario")
         self.boton_reajustar = QPushButton("&Reajustar vigente")
-        self.boton_reajustar.setEnabled(False)
-        self.boton_reajustar.setToolTip("Disponible en una próxima versión (F9).")
+        self.boton_reajustar.setToolTip(
+            "Resuelve con el horario vigente como base: conserva lo más posible (§13)."
+        )
+        self.boton_reajustar.clicked.connect(self.reajustar)
         self.boton_cancelar = QPushButton("&Cancelar")
         self.boton_cancelar.setEnabled(False)
         self.boton_generar.clicked.connect(self.generar)
@@ -102,6 +107,7 @@ class PantallaGenerar(Pantalla):
         self._reloj.timeout.connect(self._avanzar_barra)
         self._transcurrido = 0.0
         self._en_curso = False
+        self._reajuste: tuple[Solucion, Mapeo] | None = None
 
     # ------------------------------------------------------------------ estado
 
@@ -127,6 +133,9 @@ class PantallaGenerar(Pantalla):
         bloqueadas, de_donde = bloqueadas_para_generar(self.sesion)
         self.fijas.setText(self.sesion.origen_fijas(len(bloqueadas), de_donde))
         self.boton_generar.setEnabled(not errores and not self.trabajando)
+        self.boton_reajustar.setEnabled(
+            not errores and not self.trabajando and self.sesion.vigente() is not None
+        )
 
     # ------------------------------------------------------------------ acciones
 
@@ -136,9 +145,31 @@ class PantallaGenerar(Pantalla):
         if any(p.es_error for p in self.sesion.problemas()):
             self.dialogos.informar("Generar", "Corrija los errores de validación antes de generar.")
             return
-        datos = self.sesion.datos
-        opciones = opciones_de(datos)
+        opciones = opciones_de(self.sesion.datos)
         opciones.fijar, _ = bloqueadas_para_generar(self.sesion)
+        self._reajuste = None
+        self._iniciar(opciones)
+
+    def reajustar(self) -> None:
+        """«Reajustar vigente» (§13.2): el vigente entra como base (pista + B9)."""
+        if self.trabajando or self.contexto.sesion is None:
+            return
+        if any(p.es_error for p in self.sesion.problemas()):
+            self.dialogos.informar("Reajustar", "Corrija los errores de validación antes.")
+            return
+        resumen = self.sesion.vigente()
+        if resumen is None:
+            self.dialogos.informar("Reajustar", "No hay un horario vigente: marque uno primero.")
+            return
+        vigente = self.sesion.cargar_solucion(resumen.id)
+        opciones, mapeo = preparar_reajuste(
+            self.sesion.datos, vigente, opciones_de(self.sesion.datos)
+        )
+        self._reajuste = (vigente, mapeo)
+        self._iniciar(opciones)
+
+    def _iniciar(self, opciones: OpcionesResolucion) -> None:
+        datos = self.sesion.datos
         self._tiempo_limite = opciones.tiempo_limite_s
         trabajador = Trabajador(datos, opciones, DIAGNOSTICO_S)
         trabajador.progreso.connect(self._al_progresar)
@@ -156,6 +187,7 @@ class PantallaGenerar(Pantalla):
         self._transcurrido = 0.0
         self.barra.setValue(0)
         self.boton_generar.setEnabled(False)
+        self.boton_reajustar.setEnabled(False)
         self.boton_cancelar.setEnabled(True)
         self._en_curso = True
         self.contexto.poner_solo_lectura(True)
@@ -210,6 +242,13 @@ class PantallaGenerar(Pantalla):
         if resultado.solucion is not None and self.contexto.sesion is not None:
             if r.estado is EstadoSolucion.CANCELADO:
                 resultado.solucion.estado = EstadoSolucion.CANCELADO
+            comparacion = None
+            if self._reajuste is not None:
+                vigente, mapeo = self._reajuste
+                resultado.solucion = completar_solucion_de_reajuste(
+                    resultado.solucion, vigente, mapeo
+                )
+                comparacion = comparar(vigente, resultado.solucion)
             guardada = self.sesion.guardar_solucion(resultado.solucion)
             self.solucion_guardada_id = guardada.id
             total = guardada.penalizaciones.get("total", 0.0)
@@ -219,9 +258,12 @@ class PantallaGenerar(Pantalla):
                 if guardada.violaciones
                 else ""
             )
+            cambios = (
+                f" Cambios respecto al vigente: {comparacion.resumen()}" if comparacion else ""
+            )
             self.resultado.setText(
                 f"✔ {guardada.estado.value}: guardado como «{guardada.nombre}». Penalización "
-                f"total{cota}: {total:.1f}.{aviso}"
+                f"total{cota}: {total:.1f}.{aviso}{cambios}"
             )
             self.boton_ver.show()
         elif resultado.diagnostico is not None:

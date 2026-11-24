@@ -167,6 +167,47 @@ def generar(
         raise typer.Exit(1)
 
 
+@app.command()
+def reajustar(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
+    tiempo_limite: Annotated[
+        int | None,
+        typer.Option("--tiempo-limite", help="Segundos (por defecto, los del proyecto)."),
+    ] = None,
+    hilos: Annotated[int | None, typer.Option("--hilos", help="Hilos del solver.")] = None,
+) -> None:
+    """Reajusta el horario vigente con cambios mínimos y guarda el resultado (§13)."""
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.servicios.generacion import ErrorValidacion
+    from timetabling.servicios.reajuste import reajustar as reajustar_vigente
+
+    try:
+        resultado = reajustar_vigente(proyecto, tiempo_limite, hilos)
+    except ErrorValidacion as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    except (ErrorProyecto, FileNotFoundError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    r = resultado.generacion.resolucion
+    typer.echo(f"Estado: {r.estado.value} en {r.tiempo_s:.1f} s.")
+    if resultado.mapeo.por_traslape:
+        typer.echo("El vigente estaba desactualizado: se mapeó por traslape.")
+    if resultado.mapeo.sin_correspondencia:
+        typer.echo(f"{len(resultado.mapeo.sin_correspondencia)} clases sin correspondencia.")
+    solucion = resultado.generacion.solucion
+    if solucion is None:
+        typer.echo(r.mensaje or "No se encontró un reajuste.")
+        raise typer.Exit(1)
+    typer.echo(f"Guardado como «{solucion.nombre}» (id {solucion.id}).")
+    if resultado.comparacion is not None:
+        typer.echo(f"Cambios respecto al vigente: {resultado.comparacion.resumen()}")
+        for cambio in resultado.comparacion.cambios[:20]:
+            antes = cambio.antes.texto() if cambio.antes else "—"
+            despues = cambio.despues.texto() if cambio.despues else "—"
+            typer.echo(f"  {cambio.clase}: {antes} → {despues} ({cambio.descripcion})")
+
+
 def _exportar(proyecto: Path, solucion_id: int, salida: Path) -> None:
     from timetabling.persistencia.migraciones import ErrorProyecto
     from timetabling.servicios.exportacion import exportar as exportar_solucion

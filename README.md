@@ -20,7 +20,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F6 GUI de captura | ✔ Ventana principal, Inicio, Configuración, Niveles, Grados y grupos, Asignaturas, Plan, Clases, Profesores, Espacios, Validación |
 | F7 Generar y Resultados | ✔ Generar en segundo plano, Resultados con vistas por grupo, profesor y espacio, vigente, exportación a Excel |
 | F8 Editor manual | ✔ Borradores, panel «Por colocar», colores de validez, arrastrar, intercambiar, reacomodar, deshacer, bloquear, completar, sugerir |
-| F9–F12 | Pendientes |
+| F9 Reajuste y comparación | ✔ Reajustar el vigente con cambios mínimos, mapeo por traslape, comparación por asignación mínima, hoja Cambios |
+| F10–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -43,6 +44,10 @@ Lo que ya funciona:
   «Por colocar» a la rejilla, ver en verde/amarillo/rojo (✓/~/✗) dónde puede ir cada una y
   por qué, intercambiar, «colocar y reacomodar lo mínimo», bloquear (📌) las que importan,
   deshacer, «Completar el resto» con el generador y validar el borrador como definitivo.
+- «Reajustar vigente» (en Generar) o `timetabling reajustar P.horario [--tiempo-limite N]`
+  resuelve conservando lo más posible del horario vigente; Resultados muestra cuántas clases y
+  profesores cambian, la pestaña «Cambios» y «Resaltar cambios» (↻). Un horario hecho con otra
+  configuración de niveles se ajusta por traslape.
 - `timetabling exportar P.horario --solucion ID --salida horario.xlsx` y
   `timetabling generar P.horario --exportar horario.xlsx` escriben el libro de Excel.
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
@@ -99,6 +104,12 @@ uv run ruff check src pruebas
 7. En Configuración ponga un tiempo límite de 30 s; en Generar pulse «Generar horario» y
    observe la fase y la penalización; luego «Ver en Resultados», elija «8°A» y «Dora Montes»
    (profesora de tres niveles), marque el horario como vigente y expórtelo a Excel.
+
+### Prueba manual del reajuste (F9)
+
+1. Con un horario vigente, en Profesores quite a «Sara Kim» la disponibilidad del lunes.
+2. En Generar pulse «Reajustar vigente»: al terminar dice cuántas clases y profesores cambian.
+3. En Resultados abra la pestaña «Cambios» y active «Resaltar cambios»; elija el grupo «K1A».
 
 ### Prueba manual del editor (F8)
 

@@ -449,3 +449,35 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 - **Decisión:** la ventana debe caber en una laptop de 1024 px de ancho (en macOS las fuentes la
   ensanchan hasta ~860 px); una prueba lo vigila. Las filas de botones largas se reparten en
   dos.
+
+## F9 Reajuste y comparación
+
+### 2026-11-24 · Comparación en tiempo real con asignación mínima propia
+- **Decisión:** `dominio/comparacion.py` compara dos soluciones guardadas. Las clases se
+  identifican por `clase_id` o, si se borró, por asignatura + grupos (texto guardado); las
+  ocurrencias se comparan por día, inicio y fin (así funciona con soluciones desactualizadas) y
+  por el conjunto de profesores. El emparejamiento usa un método húngaro propio (el dominio no
+  depende de OR-Tools); se verificó contra fuerza bruta en matrices rectangulares aleatorias.
+- «Clases afectadas» cuenta las clases con algún cambio; «profesores afectados», los que
+  aparecen antes o después en una ocurrencia que cambió.
+
+### 2026-11-24 · Mapeo de una solución guardada
+- **Decisión:** `servicios.soluciones.mapear_solucion` lleva una solución a las clases y
+  franjas actuales: misma franja si la huella coincide; si no, la de mayor traslape del mismo
+  día y nivel (en empate, la de menor índice). Dos ocurrencias que caerían en la misma franja de
+  la misma clase: la segunda queda «sin correspondencia». Los profesores que ya no existen se
+  quitan de la colocación. Se usa en el reajuste y en las copias ajustadas del editor (§5.3:
+  una solución desactualizada se edita como «Copia ajustada de …»).
+
+### 2026-11-24 · Pista completa desde la base
+- **Contexto:** reajustar un vigente sin cambios en los datos producía cientos de cambios: la
+  pista solo fijaba dónde ocurría cada clase y no quién la daba, y la primera solución se
+  alejaba de la base sin que la optimización alcanzara a volver.
+- **Decisión:** la pista de la base incluye también `x` (profesor en cada franja) e `y`
+  (profesor a cargo). Ahora un reajuste sin cambios da 0 cambios.
+
+### 2026-11-24 · Con qué se compara una solución
+- **Decisión:** con la solución de la que partió (`base_id`: reajustes, copias, completados) o,
+  si no tiene, con el vigente (si es otra). Resultados muestra el resumen, la pestaña Cambios y
+  «Resaltar cambios» (↻ en negrita); la hoja `Cambios` de Excel aparece cuando hay con qué
+  comparar. El reajuste no se marca vigente solo: el usuario lo revisa y lo marca.
