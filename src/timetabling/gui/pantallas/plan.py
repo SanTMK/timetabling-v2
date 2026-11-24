@@ -8,6 +8,7 @@ from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QSpinBox,
@@ -50,6 +51,7 @@ class PantallaPlan(Pantalla):
         )
         self.tabla = QTableWidget()
         self.tabla.setItemDelegate(_DelegadoHoras(self.tabla))
+        self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.tabla.setAccessibleName("Matriz del plan de estudios")
         self.tabla.itemChanged.connect(self._celda_cambiada)
         capa.addWidget(self.tabla, 1)

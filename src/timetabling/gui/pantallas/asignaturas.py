@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
@@ -52,7 +53,8 @@ class EditorReglas(QWidget):
         self.bloque.setAccessibleName("Bloque doble")
         forma.addRow("Bloque doble", self.bloque)
         self.cuadricula = CuadriculaFranjas()
-        forma.addRow("Franjas (clic: 🚫 prohibida → ★ preferida → normal)", self.cuadricula)
+        forma.addRow(QLabel("Franjas — clic o espacio: 🚫 prohibida → ★ preferida → normal"))
+        forma.addRow(self.cuadricula)
         capa.addWidget(self.cuerpo)
         self._activar(not con_activar)
 
@@ -79,6 +81,7 @@ class PantallaAsignaturas(PantallaListaFormulario):
     titulo = "Asignaturas"
     tipo = Asignatura
     nombre_singular = "asignatura"
+    texto_nuevo = "Nueva asignatura"
 
     def construir_formulario(self, formulario: Formulario) -> None:
         f = formulario

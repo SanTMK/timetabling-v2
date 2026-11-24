@@ -231,6 +231,8 @@ class PantallaListaFormulario(Pantalla):
 
     tipo: type[BaseModel]
     nombre_singular = "elemento"
+    texto_nuevo = ""
+    """Texto del botón de alta; por defecto «Nuevo <nombre_singular>»."""
 
     def __init__(self, contexto: Contexto) -> None:
         super().__init__(contexto)
@@ -249,7 +251,7 @@ class PantallaListaFormulario(Pantalla):
         self.lista.currentItemChanged.connect(self._al_elegir)
         capa_izq.addWidget(self.lista)
         botones = QHBoxLayout()
-        self.boton_nuevo = QPushButton(f"Nuevo {self.nombre_singular}")
+        self.boton_nuevo = QPushButton(self.texto_nuevo or f"Nuevo {self.nombre_singular}")
         self.boton_eliminar = QPushButton("Eliminar")
         self.boton_nuevo.clicked.connect(self.nuevo)
         self.boton_eliminar.clicked.connect(self.eliminar)

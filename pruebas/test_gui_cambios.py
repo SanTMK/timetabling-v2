@@ -193,7 +193,11 @@ def test_doble_clic_en_validacion_navega(con_pequeno: VentanaPrincipal, qtbot: A
     _clic(qtbot, profesores.boton_guardar)
     validacion: Any = con_pequeno.ir_a("validacion")
     fila = next(i for i, p in enumerate(validacion.problemas) if "Irene Castro" in p.mensaje)
-    validacion.navegar(fila)
+    # Doble clic real (con el clic previo que registra la celda pulsada en Qt 6).
+    centro = validacion.tabla.visualItemRect(validacion.tabla.item(fila, 1)).center()
+    vista = validacion.tabla.viewport()
+    qtbot.mouseClick(vista, Qt.MouseButton.LeftButton, pos=centro)
+    qtbot.mouseDClick(vista, Qt.MouseButton.LeftButton, pos=centro)
     assert con_pequeno.pantalla_actual() is profesores
     assert profesores.nombre.text() == "Irene Castro"
     inicio: Any = con_pequeno.ir_a("inicio")

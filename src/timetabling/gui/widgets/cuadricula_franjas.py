@@ -20,7 +20,8 @@ from timetabling.nucleo.franjas import Franja, en_rango
 
 Estado = Literal["", "prohibida", "preferida"]
 SIGUIENTE: dict[Estado, Estado] = {"": "prohibida", "prohibida": "preferida", "preferida": ""}
-SIMBOLO: dict[Estado, str] = {"": "", "prohibida": "🚫 prohibida", "preferida": "★ preferida"}
+SIMBOLO: dict[Estado, str] = {"": "", "prohibida": "🚫", "preferida": "★"}
+DESCRIPCION: dict[Estado, str] = {"": "Normal", "prohibida": "Prohibida", "preferida": "Preferida"}
 COLOR: dict[Estado, str] = {"": "#FFFFFF", "prohibida": "#BDBDBD", "preferida": "#C8E6C9"}
 
 
@@ -35,6 +36,8 @@ class CuadriculaFranjas(QTableWidget):
         self.modificada = False
         self._originales: tuple[list[RangoFranjas], list[RangoFranjas]] = ([], [])
         self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.horizontalHeader().setMinimumSectionSize(36)
+        self.setMinimumWidth(320)
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setMinimumHeight(180)
         self.setAccessibleName("Cuadrícula de franjas prohibidas y preferidas")
@@ -46,7 +49,9 @@ class CuadriculaFranjas(QTableWidget):
         self._franjas = franjas_por_dia
         self.setColumnCount(len(self.dias))
         self.setRowCount(self.horas)
-        self.setHorizontalHeaderLabels([NOMBRES_DIAS[d] for d in self.dias])
+        self.setHorizontalHeaderLabels(list(self.dias))
+        for j, dia in enumerate(self.dias):
+            self.horizontalHeaderItem(j).setToolTip(NOMBRES_DIAS[dia])
         primeras = next(iter(franjas_por_dia.values()), [])
         self.setVerticalHeaderLabels(
             [
@@ -79,6 +84,7 @@ class CuadriculaFranjas(QTableWidget):
                 if i in indices:
                     estado = self.estados.get((dia, i), "")
                     item.setText(SIMBOLO[estado])
+                    item.setToolTip(f"{NOMBRES_DIAS[dia]}, hora {i + 1}: {DESCRIPCION[estado]}")
                     item.setBackground(QBrush(QColor(COLOR[estado])))
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
