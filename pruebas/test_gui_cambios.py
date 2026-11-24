@@ -274,8 +274,10 @@ def test_recientes_y_geometria(
     ruta = crear_ejemplo(tmp_path / "p.horario")
     ventana.abrir_proyecto(ruta)
     assert ventana.recientes()[0] == str(ruta)
-    # El ancho mínimo depende de las fuentes de cada sistema: se compara con el tamaño real.
-    ventana.resize(780, 520)
+    # El tamaño mínimo depende de las fuentes de cada sistema: se pide uno por encima del mínimo
+    # (si no, cada sistema lo recorta distinto al restaurar) y se compara con el tamaño real.
+    minimo = ventana.minimumSizeHint().expandedTo(ventana.minimumSize())
+    ventana.resize(max(780, minimo.width() + 40), max(520, minimo.height() + 40))
     tamano = (ventana.width(), ventana.height())
     assert ventana.close()
     from pruebas.gui_utiles import DialogosFalsos
