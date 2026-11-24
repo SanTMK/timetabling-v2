@@ -26,8 +26,10 @@ from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.objetivo import evaluar, pesos, total_ponderado
 from timetabling.nucleo.resolver import OpcionesResolucion, Resolutor
 
-LIMITE_DIA_S = 2.4
-"""Búsqueda con el vecindario del día; con la preparación, el total queda bajo 3 s (§12.4)."""
+LIMITE_DIA_S = 3.0
+"""Plazo total para el intento con el vecindario del día (§12.4), preparación incluida."""
+MARGEN_S = 0.5
+"""Tiempo que se reserva para lo que sigue a la búsqueda (extraer, evaluar, comparar)."""
 LIMITE_SEMANA_S = 5.0
 
 
@@ -178,6 +180,9 @@ def colocar_y_reacomodar(
         (False, _vecindario_del_dia(datos, calendario, conflictos, base, nueva), limite_dia_s),
         (True, _vecindario_semana(conflictos, base, nueva), limite_semana_s),
     ):
+        transcurrido = time.monotonic() - inicio
+        if not ampliada:
+            limite = max(1.0, limite - transcurrido - MARGEN_S)
         opciones = OpcionesResolucion(
             tiempo_limite_s=limite,
             hilos=hilos,
@@ -186,7 +191,7 @@ def colocar_y_reacomodar(
             fijar=fijar,
             horas=dict(horas),
         )
-        resultado = Resolutor(datos, opciones).resolver()
+        resultado = Resolutor(datos, opciones, calendario=calendario).resolver()
         if resultado.estado in (EstadoSolucion.OPTIMO, EstadoSolucion.FACTIBLE):
             despues = sorted(
                 Colocacion(

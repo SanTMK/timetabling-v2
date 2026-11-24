@@ -410,8 +410,9 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-24 · Vecindario de la reparación
 - **Decisión:** el vecindario del día son las clases con alguna colocación ese día que
   comparten grupo, profesor o tipo de espacio con la clase movida; esas clases quedan libres
-  en toda la semana. La búsqueda con ese vecindario tiene 2,4 s (con la preparación del modelo,
-  el total queda bajo los 3 s de §12.4 aun en el runner de Windows); si no hay solución, se
+  en toda la semana. El intento con ese vecindario tiene un plazo total de 3 s (§12.4): la
+  búsqueda recibe lo que queda tras preparar el modelo, menos 0,5 s de margen; si no hay
+  solución, se
   amplía a todas las clases de esos grupos y profesores (5 s). Las bloqueadas no se mueven
   nunca. Medido en el mediano: ~1,3 s en una Mac M-series.
 

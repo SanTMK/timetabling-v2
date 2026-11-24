@@ -89,6 +89,7 @@ class Resolutor:
         datos: DatosEscuela,
         opciones: OpcionesResolucion | None = None,
         al_progresar: Callable[[Progreso], None] | None = None,
+        calendario: Calendario | None = None,
     ) -> None:
         self.datos = datos
         self.opciones = opciones or OpcionesResolucion(
@@ -99,7 +100,7 @@ class Resolutor:
         self._solver: cp_model.CpSolver | None = None
         self._candado = threading.Lock()
         self._inicio = 0.0
-        self.calendario = Calendario.de(datos)
+        self.calendario = calendario or Calendario.de(datos)
 
     def cancelar(self) -> None:
         """Detiene la búsqueda en curso (seguro desde otro hilo)."""
