@@ -270,7 +270,9 @@ def test_recientes_y_geometria(
     ruta = crear_ejemplo(tmp_path / "p.horario")
     ventana.abrir_proyecto(ruta)
     assert ventana.recientes()[0] == str(ruta)
-    ventana.resize(780, 520)  # cabe en la pantalla virtual de «offscreen» (800 px)
+    # El ancho mínimo depende de las fuentes de cada sistema: se compara con el tamaño real.
+    ventana.resize(780, 520)
+    tamano = (ventana.width(), ventana.height())
     assert ventana.close()
     from pruebas.gui_utiles import DialogosFalsos
 
@@ -278,7 +280,7 @@ def test_recientes_y_geometria(
     qtbot.addWidget(otra)
     assert otra.recientes()[0] == str(ruta)
     assert otra.menu_recientes.actions()[0].text() == str(ruta)
-    assert (otra.width(), otra.height()) == (780, 520)
+    assert (otra.width(), otra.height()) == tamano
 
 
 def test_proyecto_v6_ofrece_importar(ventana: VentanaPrincipal, tmp_path: Path) -> None:
