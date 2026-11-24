@@ -29,7 +29,20 @@ jobs:
       - name: Ruff
         run: uv run ruff check src pruebas
       - name: Pruebas rápidas
-        run: uv run pytest -m "not lento and not rendimiento" --durations=10
+        shell: bash
+        # Límite propio del paso: si algo se cuelga, el paso falla (no se cancela el trabajo) y
+        # el registro se sube abajo como artefacto.
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          uv run pytest -m "not lento and not rendimiento" --durations=10 -v 2>&1 | tee pytest.log
+      - name: Subir el registro de pytest
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pytest-${{ matrix.os }}
+          path: pytest.log
+          if-no-files-found: ignore
 
   lentas:
     name: Lentas y rendimiento (Windows)
