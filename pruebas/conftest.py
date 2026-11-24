@@ -4,11 +4,15 @@ Configuración común de la suite. Bloquea la red **en ejecución** durante toda
 cualquier intento de crear un socket o abrir una conexión falla la prueba.
 """
 
+import os
 import socket
 from collections.abc import Iterator
 from typing import Any, NoReturn
 
 import pytest
+
+# Las pruebas de interfaz no abren ventanas visibles.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 class RedBloqueadaError(RuntimeError):
@@ -31,3 +35,20 @@ def _sin_red() -> Iterator[None]:
     finally:
         socket.socket = original_socket  # type: ignore[misc]
         socket.create_connection = original_conexion
+
+
+@pytest.fixture
+def ventana(qtbot: Any, tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Ventana principal con diálogos falsos y preferencias en una carpeta temporal."""
+    from pruebas.gui_utiles import DialogosFalsos
+    from timetabling.gui.app import VentanaPrincipal
+
+    monkeypatch.setenv("TIMETABLING_CONFIG", str(tmp_path / "config"))
+    dialogos = DialogosFalsos()
+    principal = VentanaPrincipal(dialogos=dialogos)
+    qtbot.addWidget(principal)
+    principal.show()
+    yield principal
+    if principal.contexto.sesion is not None:
+        principal.contexto.sesion.cerrar()
+        principal.contexto.sesion = None

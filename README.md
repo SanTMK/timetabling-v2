@@ -17,9 +17,13 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F3 Modelo duro y verificador | ✔ Modelo CP-SAT con D1–D16, etapa de factibilidad, conflictos incrementales, verificador independiente; el mediano resuelve en ~1,5 s |
 | F4 Objetivo | ✔ Criterios B1–B10 con prioridades y perfiles, etapa de optimización, `timetabling generar` |
 | F5 Diagnóstico | ✔ Núcleo de infactibilidad por familias y por entidad, con mensajes concretos |
-| F6–F12 | Pendientes |
+| F6 GUI de captura | ✔ Ventana principal, Inicio, Configuración, Niveles, Grados y grupos, Asignaturas, Plan, Clases, Profesores, Espacios, Validación |
+| F7–F12 | Pendientes |
 
 Lo que ya funciona:
+- `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
+  capturan todos los datos de la escuela, con validación, aviso de cambios sin guardar (•),
+  errores junto a cada campo, respaldos y proyectos recientes.
 - `timetabling --version` muestra la versión.
 - `timetabling ejemplo P.horario [--tamano pequeno|mediano] [--sobrescribir]` crea un proyecto
   de ejemplo.
@@ -71,6 +75,16 @@ uv run pytest
 ```bash
 uv run ruff check src pruebas
 ```
+
+## Prueba manual de la interfaz
+
+1. `uv run timetabling ejemplo mediano.horario --tamano mediano`
+2. `uv run timetabling` → Archivo → Abrir… → `mediano.horario`.
+3. Inicio muestra la lista de verificación en verde; recorra las pantallas de la barra lateral.
+4. En Niveles cambie la duración de la hora: la vista previa de franjas se actualiza. Intente
+   cambiar de pantalla sin guardar y elija Guardar, Descartar o Cancelar.
+5. En Profesores, elija «Sara Kim» y arrastre sobre la cuadrícula de disponibilidad.
+6. En Validación, haga doble clic en un problema para ir al elemento.
 
 ## Integración continua
 

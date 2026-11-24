@@ -314,3 +314,38 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   mensaje lo dice (`minimo = False`).
 - **Integración:** `generar` diagnostica solo si el resultado es INFACTIBLE (60 s por defecto;
   la interfaz usará 30 s) y la línea de comandos imprime el mensaje y los enlaces.
+
+## F6 GUI de captura
+
+### 2026-11-23 · `SesionProyecto` entre la interfaz y el repositorio
+- **Decisión:** `servicios/sesion.py` (sin Qt) mantiene el proyecto abierto, cachea los datos,
+  avisa a los observadores cuando cambian y hace las operaciones compuestas en una transacción:
+  sincronizar clases, guardar un grupo con sus divisiones, juntar y dividir clases, guardar
+  varias celdas del plan. También calcula la lista de verificación de Inicio.
+
+### 2026-11-23 · Diálogos intercambiables
+- **Decisión:** todos los diálogos (guardar/descartar/cancelar, confirmar, elegir, rutas) pasan
+  por `gui/dialogos.py`; las pruebas usan `DialogosFalsos` con respuestas programadas. Las
+  pruebas corren con `QT_QPA_PLATFORM=offscreen` y preferencias en una carpeta temporal
+  (`TIMETABLING_CONFIG`).
+
+### 2026-11-23 · Reglas de asignatura en la interfaz
+- **Decisión:** la pestaña «Por defecto» usa una cuadrícula genérica de índices (vale para
+  todos los niveles); cada nivel tiene su pestaña con la casilla «Usar reglas propias en este
+  nivel», que sobrescribe las cuatro reglas a la vez (el modelo permite sobrescribir campo por
+  campo; la interfaz lo simplifica). La cuadrícula guarda un rango por índice por tramo
+  consecutivo de cada día; si no se toca, conserva los rangos originales (también por horas).
+
+### 2026-11-23 · Acciones inmediatas en Clases
+- **Decisión:** en Clases cada acción (sincronizar, nueva clase, juntar, dividir, asignar
+  profesor, cambiar horas, eliminar) se guarda al instante; no hay botón Guardar. «Juntar
+  grupos» une clases de la misma asignatura en grupos del mismo nivel y conserva horas y
+  profesores de la clase elegida. «Dividir» crea una clase por parte con las mismas horas.
+
+### 2026-11-23 · Divisiones en Grados y grupos
+- **Decisión:** las divisiones se editan como filas del grupo («Partes» separadas por coma);
+  quitar una fila elimina la división (y en cascada las clases que la usaban).
+
+### 2026-11-23 · «Importar proyecto anterior…»
+- **Decisión:** el menú existe pero queda desactivado hasta F11. Abrir un archivo v6 avisa que
+  debe importarse.

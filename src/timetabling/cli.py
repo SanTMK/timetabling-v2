@@ -38,9 +38,11 @@ def raiz(
         ),
     ] = False,
 ) -> None:
-    """Sin subcomando abre la interfaz gráfica (disponible a partir de F6)."""
+    """Sin subcomando abre la interfaz gráfica."""
     if ctx.invoked_subcommand is None:
-        typer.echo("La interfaz gráfica todavía no está disponible (fase F6).")
+        from timetabling.gui.app import ejecutar
+
+        raise typer.Exit(ejecutar())
 
 
 class TamanoEjemplo(StrEnum):
