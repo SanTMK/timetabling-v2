@@ -22,7 +22,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F8 Editor manual | ✔ Borradores, panel «Por colocar», colores de validez, arrastrar, intercambiar, reacomodar, deshacer, bloquear, completar, sugerir |
 | F9 Reajuste y comparación | ✔ Reajustar el vigente con cambios mínimos, mapeo por traslape, comparación por asignación mínima, hoja Cambios |
 | F10 Suplencias | ✔ Ausencias (completas o parciales), clases afectadas del vigente, candidatos en orden, «sin cubrir», conteo mensual y reporte del día en Excel |
-| F11–F12 | Pendientes |
+| F11 Importación | ✔ Asistentes para el cuadro de horarios, el cuadro de maestros (con horarios como borrador) y proyectos v6; alias y mapeo editables; todo en una transacción con respaldo |
+| F12 | Pendiente |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -105,6 +106,23 @@ uv run ruff check src pruebas
 7. En Configuración ponga un tiempo límite de 30 s; en Generar pulse «Generar horario» y
    observe la fase y la penalización; luego «Ver en Resultados», elija «8°A» y «Dora Montes»
    (profesora de tres niveles), marque el horario como vigente y expórtelo a Excel.
+
+### Prueba manual de la importación (F11)
+
+1. Archivo → Importar proyecto anterior…: elija `pruebas/datos/proyecto_v6.horario`, revise
+   el resumen y pulse «Aplicar»: se abre el proyecto nuevo con su horario vigente.
+2. Cree un proyecto con los niveles Primaria (45 min, 8:00–11:20, recreo 9:30–9:50) y
+   Preescolar (40 min, 8:00–10:55, recreo 9:20–9:40) y los grados 1°, 2° y Kinder.
+3. Archivo → Importar cuadro de horarios (Excel)…: `pruebas/datos/cuadro_grupos.xlsx`; en el
+   mapeo cambie «Math» por «Matemáticas» y aplique. Revise Plan, Clases y Niveles (hora cívica).
+4. Archivo → Importar cuadro de maestros (Excel)…: `pruebas/datos/cuadro_maestros.xlsx` con
+   «Importar también los horarios como borrador»; abra el borrador en el Editor.
+
+Desde la línea de comandos:
+
+```bash
+uv run timetabling importar-v6 pruebas/datos/proyecto_v6.horario nuevo.horario
+```
 
 ### Prueba manual de las suplencias (F10)
 

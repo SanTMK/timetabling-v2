@@ -297,9 +297,10 @@ def test_proyecto_v6_ofrece_importar(ventana: VentanaPrincipal, tmp_path: Path) 
     con.execute("CREATE TABLE esquema_version (version INTEGER)")
     con.commit()
     con.close()
+    ventana.dialogos.responder(False)  # type: ignore[attr-defined]
     assert ventana.abrir_proyecto(ruta) is None
     titulo, texto = ventana.dialogos.mostrados[-1]  # type: ignore[attr-defined]
-    assert titulo == "Proyecto de la versión anterior" and "Importar proyecto anterior" in texto
+    assert titulo == "Proyecto de la versión anterior" and "¿Importarlo ahora?" in texto
 
 
 def test_sin_proyecto_las_pantallas_estan_desactivadas(ventana: VentanaPrincipal) -> None:

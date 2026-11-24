@@ -45,6 +45,17 @@ class DialogosFalsos(Dialogos):
     def ruta_existente(self, titulo: str = "Abrir proyecto") -> Path | None:
         return self._siguiente(None)
 
+    def ruta_abrir(self, titulo: str, filtro: str) -> Path | None:
+        self.mostrados.append((titulo, filtro))
+        return self._siguiente(None)
+
+    def ejecutar(self, dialogo: Any) -> bool:
+        """Sin ventana modal: la respuesta programada es una función que recibe el diálogo
+        (lo maneja y devuelve si se aceptó); sin respuesta, se cancela."""
+        self.mostrados.append(("ejecutar", type(dialogo).__name__))
+        accion = self._siguiente(None)
+        return bool(accion(dialogo)) if callable(accion) else bool(accion)
+
     def ruta_guardar(self, titulo: str, filtro: str, sufijo: str) -> Path | None:
         self.mostrados.append((titulo, filtro))
         return self._siguiente(None)

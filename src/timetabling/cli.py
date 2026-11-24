@@ -230,6 +230,87 @@ def exportar(
     _exportar(proyecto, solucion, salida)
 
 
+@app.command("importar-excel")
+def importar_excel(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
+    cuadro: Annotated[Path, typer.Argument(help="Cuadro de horarios por grado (.xlsx).")],
+    mapeo: Annotated[
+        Path | None,
+        typer.Option("--mapeo", help="Mapeo en JSON (hojas → grados, textos → asignaturas)."),
+    ] = None,
+    guardar_mapeo: Annotated[
+        Path | None,
+        typer.Option("--guardar-mapeo", help="Escribe el mapeo sugerido en JSON y termina."),
+    ] = None,
+) -> None:
+    """Importa asignaturas, grupos y plan desde el cuadro de horarios (§15.1)."""
+    from timetabling.importacion.horarios_excel import MapeoHorarios, mapeo_inicial
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.persistencia.repositorio import Repositorio
+    from timetabling.servicios.importacion import importar_horarios, leer_horarios
+
+    try:
+        hojas = leer_horarios(cuadro)
+        with Repositorio.abrir(proyecto) as repo:
+            elegido = (MapeoHorarios.de_json(mapeo.read_text("utf-8")) if mapeo
+                       else mapeo_inicial(repo.cargar_datos(), hojas))  # fmt: skip
+            if guardar_mapeo is not None:
+                guardar_mapeo.write_text(elegido.a_json(), "utf-8")
+                typer.echo(f"Mapeo sugerido escrito en «{guardar_mapeo}».")
+                return
+            resultado = importar_horarios(repo, hojas, elegido)
+    except (ErrorProyecto, FileNotFoundError, OSError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    typer.echo(resultado.texto())
+
+
+@app.command("importar-maestros")
+def importar_maestros(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
+    cuadro: Annotated[Path, typer.Argument(help="Cuadro de maestros (.xlsx).")],
+    con_horarios: Annotated[
+        bool, typer.Option("--con-horarios", help="Importa también los horarios como borrador.")
+    ] = False,
+) -> None:
+    """Importa profesores y su asignación por grupo desde el cuadro de maestros (§15.2)."""
+    from timetabling.importacion.maestros_excel import mapeo_inicial
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.persistencia.repositorio import Repositorio
+    from timetabling.servicios.importacion import importar_maestros as importar
+    from timetabling.servicios.importacion import leer_maestros
+
+    try:
+        bloques = leer_maestros(cuadro)
+        with Repositorio.abrir(proyecto) as repo:
+            elegido = mapeo_inicial(repo.cargar_datos(), bloques)
+            elegido.con_horarios = con_horarios
+            resultado, borrador = importar(repo, bloques, elegido)
+    except (ErrorProyecto, FileNotFoundError, OSError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    typer.echo(resultado.texto())
+    if borrador is not None:
+        typer.echo(f"Borrador guardado como «{borrador.nombre}» (id {borrador.id}).")
+
+
+@app.command("importar-v6")
+def importar_v6(
+    anterior: Annotated[Path, typer.Argument(help="Proyecto de la versión anterior (.horario).")],
+    nuevo: Annotated[Path, typer.Argument(help="Proyecto nuevo que se creará (.horario).")],
+) -> None:
+    """Convierte un proyecto de la versión anterior (esquema v6) en uno nuevo (§15.3)."""
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.servicios.importacion import importar_v6 as importar
+
+    try:
+        informe = importar(anterior, nuevo)
+    except (ErrorProyecto, FileNotFoundError, OSError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    typer.echo(informe.texto())
+
+
 def principal() -> None:
     """Punto de entrada del ejecutable `timetabling`."""
     app()

@@ -71,6 +71,15 @@ class Dialogos:
         ruta, _ = QFileDialog.getOpenFileName(self.padre, titulo, "", FILTRO)
         return Path(ruta) if ruta else None
 
+    def ruta_abrir(self, titulo: str, filtro: str) -> Path | None:
+        """Archivo existente de cualquier tipo (p. ej. un cuadro de Excel)."""
+        ruta, _ = QFileDialog.getOpenFileName(self.padre, titulo, "", filtro)
+        return Path(ruta) if ruta else None
+
+    def ejecutar(self, dialogo: QDialog) -> bool:
+        """Muestra un diálogo modal (p. ej. un asistente); verdadero si se aceptó."""
+        return dialogo.exec() == QDialog.DialogCode.Accepted
+
     def ruta_guardar(self, titulo: str, filtro: str, sufijo: str) -> Path | None:
         ruta, _ = QFileDialog.getSaveFileName(self.padre, titulo, "", filtro)
         if not ruta:

@@ -31,6 +31,8 @@ from timetabling.dominio.modelos import (
     por_id,
 )
 from timetabling.exportacion.excel import FilaCambio, exportar_excel
+from timetabling.importacion import horarios_excel, maestros_excel
+from timetabling.importacion.comun import Resultado
 from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.validacion import Problema, validar
 from timetabling.persistencia.archivo import Aviso
@@ -358,6 +360,26 @@ class SesionProyecto:
         if not partes:
             return "No hay asignaciones fijas: bloquee clases en el Editor para fijarlas."
         return "Asignaciones fijas: " + " y ".join(partes) + "."
+
+    # ------------------------------------------------------------------ importación (§15)
+
+    def importar_horarios(
+        self, hojas: list[horarios_excel.HojaLeida], mapeo: horarios_excel.MapeoHorarios
+    ) -> Resultado:
+        from timetabling.servicios.importacion import importar_horarios
+
+        resultado = importar_horarios(self.repo, hojas, mapeo)
+        self._cambio()
+        return resultado
+
+    def importar_maestros(
+        self, bloques: list[maestros_excel.BloqueMaestro], mapeo: maestros_excel.MapeoMaestros
+    ) -> tuple[maestros_excel.ResultadoMaestros, Solucion | None]:
+        from timetabling.servicios.importacion import importar_maestros
+
+        resultado = importar_maestros(self.repo, bloques, mapeo)
+        self._cambio()
+        return resultado
 
     # ------------------------------------------------------------------ archivo
 

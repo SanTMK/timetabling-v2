@@ -889,7 +889,7 @@ class Repositorio:
 
     # ------------------------------------------------------------------ reemplazo completo
 
-    def reemplazar_datos(self, datos: DatosEscuela) -> list[str]:
+    def reemplazar_datos(self, datos: DatosEscuela, respaldo: bool = True) -> list[str]:
         """Sustituye todos los datos de captura por `datos` en una transacción, con respaldo
         previo. Las soluciones se conservan. Las entidades se emparejan por id: las que faltan
         se borran, salvo los profesores en uso, que se desactivan. Devuelve los nombres de los
@@ -909,7 +909,7 @@ class Repositorio:
         for tabla, lista in entidades:
             if any(e.id is None for e in lista):
                 raise ValueError(f"Todas las entidades de «{ETIQUETAS[tabla]}» necesitan id.")
-        if self._hay_datos():
+        if respaldo and self._hay_datos():
             self.crear_respaldo()
         desactivados: list[str] = []
         with self.transaccion() as con:

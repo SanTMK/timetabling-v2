@@ -508,3 +508,69 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   según el borrador actual; las suplencias con fecha se registran en la pantalla Suplencias.
 - El reporte del día en **PDF** llega con F12 (`pdf.py`, §16.2); en F10 se exporta a Excel
   (una hoja carta horizontal ajustada a una página).
+
+### 2026-11-24 · Importación: datos de prueba sintéticos
+- **Decisión (consultada):** `pruebas/datos/` guarda un `.horario` con el **esquema v6 real**
+  (versión 6, todas sus tablas) pero con una escuela inventada, y dos cuadros de Excel con el
+  mismo horario. No se publica el proyecto real de la escuela (el repositorio es público). Los
+  tres archivos los genera `pruebas/datos/generar_datos.py` desde un único horario semanal.
+
+### 2026-11-24 · Importación: arquitectura
+- **Decisión:** `importacion/` lee los archivos y calcula el resultado como datos puros (una
+  copia de `DatosEscuela` con ids nuevos, el resumen y los avisos); usa `nucleo.franjas` para
+  conocer las franjas. `servicios/importacion.py` lo aplica: respaldo y, en **una**
+  transacción, `reemplazar_datos` (que gana el parámetro `respaldo`) y los borradores o
+  soluciones. Si algo falla, no queda nada a medias.
+- La importación de un cuadro **sincroniza las clases** con el plan importado (crea las de
+  grupo completo que falten), porque el cuadro de maestros fija profesores sobre ellas.
+
+### 2026-11-24 · Cuadro de horarios (§15.1)
+- Hojas → grados por nombre («1st», «1°», «primero», «kinder»); el asistente permite elegir un
+  grado existente, **crear uno nuevo** en un nivel u omitir la hoja.
+- Días en inglés o español. Sección: última letra de la etiqueta si la hoja tiene varios
+  grupos; si no, A, B, C… por orden.
+- Textos → asignaturas: alias guardado, asignatura del mismo nombre (sin acentos ni
+  mayúsculas), variante conocida o el propio texto. Lo que se mapea a otro nombre se guarda
+  como `AliasImportacion` (sin distinguir mayúsculas). «(ignorar)» descarta la celda.
+- Recesos y tutorías: listas de palabras editables en el mapeo; no cuentan.
+- Plan por grado: el valor más frecuente entre sus grupos (el mayor si empatan), con aviso.
+  El plan de los grados importados se **reemplaza** (el resumen dice qué cambia o se quita).
+- Hora cívica: celdas vacías celestes → evento del nivel, si no se cruza con uno existente.
+- `--mapeo` de la línea de comandos usa el mismo JSON que `--guardar-mapeo` escribe.
+
+### 2026-11-24 · Cuadro de maestros (§15.2)
+- Títulos normalizados (Ms., Mr., Mrs., Miss, Prof., Profa., Mtro., Mtra.) y conservados en el
+  nombre; al comparar con los profesores existentes se ignoran (y los acentos). Un profesor
+  inactivo que aparece en el cuadro se reactiva.
+- Grupos en las celdas: número de grado (o «PP» prepa, «K» kínder) + sección A–H.
+- Cada (grupo, asignatura) queda con el maestro que más sesiones da (aviso si hay varios); las
+  clases de ese grupo reciben ese profesor fijo. Los profesores nuevos quedan disponibles toda
+  la jornada.
+- «Importar también los horarios como borrador»: la hora sale de la columna de horas del
+  bloque (o del texto de la celda); cada celda va a la franja de mayor traslape del nivel del
+  grupo (en empate, la de menor índice). El borrador es `BORRADOR`, origen `importado`.
+- Los bloques cuyo nombre contiene «biblioteca» o «library» se proponen como «(omitir)».
+
+### 2026-11-24 · Proyecto v6 (§15.3)
+- Pesos → perfil más cercano por el **ángulo** entre el vector de pesos v6 (B1–B8) y los
+  multiplicadores de cada perfil; los pesos v6 se guardan como pesos avanzados (sin activar el
+  modo avanzado). B10 no existía: recibe el multiplicador del perfil escalado a los pesos v6.
+- `sin_huecos_alumnos` → huecos de alumnos «prohibidos» (si no, «penalizar»).
+- `exigente` → franja preferida desde el inicio hasta la mitad de la jornada (redondeada a
+  5 min) en cada nivel donde se da la asignatura.
+- `max_consecutivas` → `max_minutos_continuos` = clases × la duración más larga de los niveles
+  del profesor. Un profesor v6 **sin rangos** de disponibilidad se importa disponible toda la
+  jornada (en la v6 no podía dar clase) y se avisa.
+- Eventos a los que asistía un profesor → eventos propios del profesor (nombre + nivel).
+- Las soluciones se reconstruyen con las franjas actuales y se verifican con las reglas v2:
+  la que no las cumple se importa como `INVALIDA` y, si era la vigente, no se marca (se
+  avisa). Las penalizaciones se recalculan con los criterios v2.
+- También se leen las versiones 1–5 del esquema anterior (sin eventos, suplencias ni
+  docentes asignados).
+- Abrir un archivo v6 ofrece importarlo; el proyecto nuevo se abre al terminar.
+
+### 2026-11-24 · Asistentes en la interfaz
+- **Archivo → Importar proyecto anterior…, Importar cuadro de horarios (Excel)…, Importar
+  cuadro de maestros (Excel)…** (estos dos, con un proyecto abierto). El resumen previo se
+  calcula sin tocar el archivo; «Aplicar» guarda.
+

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from timetabling import __version__
+from timetabling.gui.asistentes import AsistenteHorarios, AsistenteMaestros, AsistenteV6
 from timetabling.gui.dialogos import Dialogos
 from timetabling.gui.pantallas.asignaturas import PantallaAsignaturas
 from timetabling.gui.pantallas.base import Contexto, Pantalla
@@ -141,9 +142,15 @@ class VentanaPrincipal(QMainWindow):
             accion.triggered.connect(lambda _c=False, f=funcion: f())
             archivo.addAction(accion)
         self.accion_importar = QAction("&Importar proyecto anterior…", self)
-        self.accion_importar.setEnabled(False)
-        self.accion_importar.setToolTip("Disponible en una próxima versión (F11).")
+        self.accion_importar.triggered.connect(lambda: self.importar_proyecto_anterior())
         archivo.addAction(self.accion_importar)
+        self.accion_importar_horarios = QAction("Importar cuadro de &horarios (Excel)…", self)
+        self.accion_importar_horarios.triggered.connect(lambda: self.importar_cuadro("horarios"))
+        archivo.addAction(self.accion_importar_horarios)
+        self.accion_importar_maestros = QAction("Importar cuadro de &maestros (Excel)…", self)
+        self.accion_importar_maestros.triggered.connect(lambda: self.importar_cuadro("maestros"))
+        archivo.addAction(self.accion_importar_maestros)
+        archivo.addSeparator()
         self.accion_guardar_como = QAction("&Guardar como…", self)
         self.accion_guardar_como.triggered.connect(lambda: self.guardar_como())
         archivo.addAction(self.accion_guardar_como)
@@ -229,7 +236,10 @@ class VentanaPrincipal(QMainWindow):
         try:
             sesion = SesionProyecto.abrir(ruta)
         except ErrorProyectoAnterior as error:
-            self.dialogos.informar("Proyecto de la versión anterior", str(error))
+            if self.dialogos.confirmar(
+                "Proyecto de la versión anterior", f"{error}\n\n¿Importarlo ahora?"
+            ):
+                return self.importar_proyecto_anterior(ruta)
             return None
         except (OSError, ErrorProyecto) as error:
             self.dialogos.error("Abrir proyecto", str(error))
@@ -237,6 +247,37 @@ class VentanaPrincipal(QMainWindow):
         self._poner_sesion(sesion)
         self.ir_a("inicio")
         return sesion
+
+    # ------------------------------------------------------------------ importación (§15)
+
+    def importar_proyecto_anterior(self, origen: Path | None = None) -> SesionProyecto | None:
+        """Asistente v6: crea un proyecto nuevo y lo abre."""
+        if self._ocupado() or not self._confirmar_cambios():
+            return None
+        asistente = AsistenteV6(self.dialogos, origen, self)
+        if not self.dialogos.ejecutar(asistente) or asistente.destino is None:
+            return None
+        self.dialogos.informar("Proyecto importado", asistente.informe)
+        try:
+            sesion = SesionProyecto.abrir(asistente.destino)
+        except (OSError, ErrorProyecto) as error:
+            self.dialogos.error("Abrir proyecto", str(error))
+            return None
+        self._poner_sesion(sesion)
+        self.ir_a("inicio")
+        return sesion
+
+    def importar_cuadro(self, cual: str) -> bool:
+        """Asistentes de Excel sobre el proyecto abierto (§15.1, §15.2)."""
+        sesion = self.contexto.sesion
+        if sesion is None or self._ocupado() or not self._confirmar_cambios():
+            return False
+        clase = AsistenteHorarios if cual == "horarios" else AsistenteMaestros
+        asistente = clase(sesion, self.dialogos, self)
+        if not self.dialogos.ejecutar(asistente) or not asistente.aplicado:
+            return False
+        self.dialogos.informar(asistente.titulo, asistente.informe)
+        return True
 
     def guardar_como(self, ruta: Path | None = None) -> None:
         sesion = self.contexto.sesion
@@ -284,6 +325,8 @@ class VentanaPrincipal(QMainWindow):
             )
         self.accion_guardar_como.setEnabled(abierta)
         self.accion_restaurar.setEnabled(abierta)
+        self.accion_importar_horarios.setEnabled(abierta)
+        self.accion_importar_maestros.setEnabled(abierta)
         actual = self.pantalla_actual()
         if not actual.hay_cambios():
             actual.recargar()
@@ -321,8 +364,10 @@ class VentanaPrincipal(QMainWindow):
     def _solo_lectura(self, solo_lectura: bool) -> None:
         for pantalla in self.pantallas.values():
             pantalla.poner_solo_lectura(solo_lectura)
-        for accion in (self.accion_guardar_como, self.accion_restaurar):
+        for accion in (self.accion_guardar_como, self.accion_restaurar,
+                       self.accion_importar_horarios, self.accion_importar_maestros):  # fmt: skip
             accion.setEnabled(not solo_lectura and self.contexto.sesion is not None)
+        self.accion_importar.setEnabled(not solo_lectura)
 
     @property
     def generando(self) -> bool:
