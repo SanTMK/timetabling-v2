@@ -1,0 +1,69 @@
+# Creado con Claude.
+# Release (§19): al subir una etiqueta v*, construye el ejecutable en Windows, macOS arm64 y
+# macOS Intel, corre la prueba de humo sobre el ejecutable empaquetado y publica los .zip.
+# macOS Intel usa macos-15-intel: la imagen macos-13 que pide la especificación ya no existe.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # Manual: construye y corre la prueba de humo sin publicar (para probar antes de etiquetar).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  construir:
+    name: Construir (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - name: Instalar
+        run: uv sync --locked
+      - name: La versión coincide con la etiqueta
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          esperada="${GITHUB_REF_NAME#v}"
+          esperada="${esperada//-/}"
+          uv run python -c "import timetabling as t, sys; print(t.__version__); sys.exit(t.__version__ != '$esperada')"
+      - name: Construir el ejecutable y el .zip
+        run: uv run python empaquetado/construir.py
+      - name: Prueba de humo del ejecutable empaquetado
+        run: uv run python empaquetado/construir.py --solo-humo
+      - name: Subir el .zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: paquete-${{ matrix.os }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  publicar:
+    name: Publicar la release
+    needs: construir
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: paquetes
+          merge-multiple: true
+      - name: Crear la release con los .zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la paquetes
+          previa=""
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then previa="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" paquetes/*.zip $previa \
+            --repo "$GITHUB_REPOSITORY" --title "Timetabling $GITHUB_REF_NAME" \
+            --notes "Ejecutables sin firma de código. macOS: clic derecho → Abrir la primera vez. Windows: «Más información» → «Ejecutar de todas formas». Ver el README."

@@ -481,3 +481,13 @@ def test_editor_buscar_suplente(ventana: Any, proyecto: Path) -> None:
     assert "1. Caro" in texto and "Ana" not in texto
     # Ed. Física 1°A: nadie más está habilitado.
     assert "Nadie puede cubrir" in editor.buscar_suplente(FISICA_A, f("L", 2))
+
+
+def test_reporte_del_dia_en_pdf(servicio: Suplencias, tmp_path: Path) -> None:
+    import re
+
+    servicio.registrar_ausencia(Ausencia(profesor_id=ANA, fecha_inicio=LUNES, fecha_fin=LUNES))
+    ruta = servicio.exportar_reporte_del_dia(LUNES, tmp_path / "dia.pdf")
+    contenido = ruta.read_bytes()
+    assert contenido.startswith(b"%PDF")
+    assert len(re.findall(rb"/Type\s*/Page(?![s\w])", contenido)) == 1

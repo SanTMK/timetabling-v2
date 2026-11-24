@@ -2,10 +2,12 @@
 
 Exportación a Excel (§16.1) y disposición común de los horarios: hojas, celdas combinadas,
 colores, impresión (verificados con openpyxl), nombres de hoja, carga docente y comandos.
-El PDF (§16.2) se agrega en F12.
+PDF (§16.2): una página por grupo o profesor elegido, carta horizontal.
 """
 
+import re
 from pathlib import Path
+from typing import Any
 
 import openpyxl
 import pytest
@@ -33,6 +35,11 @@ from timetabling.exportacion.estilos import nombre_hoja
 from timetabling.exportacion.excel import FilaCambio, exportar_excel
 from timetabling.persistencia.repositorio import Repositorio
 from timetabling.servicios.soluciones import a_solucion
+
+
+def paginas_pdf(ruta: Path) -> int:
+    """Páginas de un PDF (objetos /Type /Page, sin contar el árbol /Pages)."""
+    return len(re.findall(rb"/Type\s*/Page(?![s\w])", ruta.read_bytes()))
 
 
 def _solucion(datos: DatosEscuela, colocaciones: list[Colocacion], **campos: object) -> Solucion:
@@ -246,7 +253,66 @@ def test_cli_generar_y_exportar(tmp_path: Path) -> None:
     assert con_clases <= set(libro.sheetnames)
     pdf = corredor.invoke(app, ["exportar", str(ruta), "--solucion", identificador, "--salida",
                                 str(tmp_path / "b.pdf")])  # fmt: skip
-    assert pdf.exit_code == 2 and "PDF" in pdf.output
+    assert pdf.exit_code == 0, pdf.output
+    assert paginas_pdf(tmp_path / "b.pdf") == 5 + len(con_clases)
     falta = corredor.invoke(app, ["exportar", str(ruta), "--solucion", "999", "--salida",
                                   str(tmp_path / "c.xlsx")])  # fmt: skip
     assert falta.exit_code == 2 and "No existe la solución 999" in falta.output
+
+
+# ---------------------------------------------------------------------------
+# PDF (§16.2)
+# ---------------------------------------------------------------------------
+
+
+def test_pdf_una_pagina_por_grupo_y_profesor(tmp_path: Path) -> None:
+    from timetabling.exportacion.pdf import exportar_pdf
+
+    datos, colocaciones = _dos_niveles()
+    solucion = _solucion(datos, colocaciones)
+    disposicion = Disposicion(solucion, datos)
+    todos = len(disposicion.grupos()) + len(disposicion.profesores())
+    ruta, paginas = exportar_pdf(datos, solucion, tmp_path / "todo.pdf")
+    assert paginas == todos == paginas_pdf(ruta)
+    contenido = ruta.read_bytes()
+    assert contenido.startswith(b"%PDF")
+    # Carta horizontal: 11 × 8,5 pulgadas = 792 × 612 puntos.
+    caja = re.search(rb"/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)", contenido)
+    assert caja is not None and (round(float(caja[1])), round(float(caja[2]))) == (792, 612)
+    grupo = disposicion.grupos()[0]
+    profesores = disposicion.profesores()[:2]
+    ruta, paginas = exportar_pdf(datos, solucion, tmp_path / "algunos.pdf", grupos=[grupo],
+                                 profesores=profesores)  # fmt: skip
+    assert paginas == 3 == paginas_pdf(ruta)
+    _, paginas = exportar_pdf(datos, solucion, tmp_path / "g.pdf", profesores=[])
+    assert paginas == len(disposicion.grupos())
+    with pytest.raises(ValueError, match="al menos un grupo"):
+        exportar_pdf(datos, solucion, tmp_path / "nada.pdf", grupos=[], profesores=[])
+
+
+def test_pdf_desde_resultados(ventana: Any, tmp_path: Path) -> None:
+    ruta = tmp_path / "p.horario"
+    datos = escuela_minima()
+    with Repositorio.crear(ruta, datos.configuracion) as repo:
+        repo.reemplazar_datos(datos)
+        repo.guardar_solucion(_solucion(datos, horario_valido()))
+    ventana.abrir_proyecto(ruta)
+    resultados: Any = ventana.ir_a("resultados")
+    assert resultados.boton_pdf.isEnabled()
+    destino = tmp_path / "salida.pdf"
+    # Solo 1°A y Ana.
+    ventana.dialogos.responder([("grupo", "1°A"), ("profesor", "Ana")], destino)
+    resultados.boton_pdf.click()
+    titulo, texto = ventana.dialogos.mostrados[-1]
+    assert titulo == "Exportar a PDF" and "2 páginas" in texto
+    assert paginas_pdf(destino) == 2
+
+
+def test_icono_dibujado_con_qt(qapp: Any) -> None:
+    from timetabling.gui.icono import TAMANOS, dibujar, icono
+
+    for tamano in (16, 256):
+        imagen = dibujar(tamano)
+        assert (imagen.width(), imagen.height()) == (tamano, tamano)
+        assert imagen.pixelColor(tamano // 2, tamano // 2).alpha() == 255  # no está vacío
+    assert len(icono().availableSizes()) == len(TAMANOS)

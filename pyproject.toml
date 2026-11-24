@@ -1,6 +1,6 @@
 [project]
 name = "timetabling"
-version = "0.1.0"
+version = "0.9.0rc1"
 description = "Generador y editor de horarios escolares sin conexión (preescolar, primaria y secundaria)."
 readme = "README.md"
 requires-python = ">=3.13"

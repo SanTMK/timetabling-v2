@@ -350,6 +350,18 @@ class SesionProyecto:
             ]
         return exportar_excel(self.datos, solucion, ruta, cambios=cambios)
 
+    def exportar_pdf(
+        self,
+        solucion: Solucion,
+        ruta: Path | str,
+        grupos: Iterable[str] | None = None,
+        profesores: Iterable[str] | None = None,
+    ) -> tuple[Path, int]:
+        """PDF con una página por grupo y por profesor elegidos (`None` = todos)."""
+        from timetabling.exportacion.pdf import exportar_pdf
+
+        return exportar_pdf(self.datos, solucion, ruta, grupos=grupos, profesores=profesores)
+
     def origen_fijas(self, bloqueadas: int = 0, de_donde: str = "") -> str:
         """Texto para la pantalla Generar: cuántas fijas hay y de dónde vienen (§12.5)."""
         partes = []

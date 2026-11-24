@@ -574,3 +574,32 @@ Formato: fecha · contexto · decisión · alternativa descartada.
   cuadro de maestros (Excel)…** (estos dos, con un proyecto abierto). El resumen previo se
   calcula sin tocar el archivo; «Aplicar» guarda.
 
+### 2026-11-24 · PDF (§16.2)
+- **Decisión:** `exportacion/pdf.py` dibuja con `QPainter` sobre `QPdfWriter` (144 ppp), carta
+  horizontal con márgenes de 0,25", la misma `Disposicion` que Excel y la interfaz. Las filas
+  de receso pesan menos de alto; en la rejilla Δ de un profesor multinivel se rotula cada
+  media hora. El texto se achica hasta caber (mínimo 4,5 pt).
+- Las marcas 📌 ↻ ⚠ se escriben como «[F]», «*» y «!»: las fuentes base del PDF no tienen esos
+  símbolos en todos los sistemas.
+- «Se elige qué incluir»: en Resultados, una lista con todos los grupos y profesores marcados;
+  en la línea de comandos se incluye todo.
+- Sin aplicación Qt (línea de comandos) se crea una `QApplication` —no solo
+  `QGuiApplication`— para que el mismo proceso pueda crear widgets después (pruebas).
+
+### 2026-11-24 · Empaquetado y release (§19)
+- **Decisión:** el ícono se dibuja con Qt en `gui/icono.py` (lo usa también la ventana);
+  `construir.py` lo guarda como `.icns` o `.ico` con los escritores de imagen de Qt (con
+  `iconutil` de respaldo en macOS).
+- PyInstaller *onedir*, `--windowed`, `--collect-all ortools`, `--collect-data timetabling`
+  (`esquema.sql`) y `--copy-metadata timetabling` (para `--version`).
+- `empaquetado/lanzador.py`: en Windows, con argumentos, usa la salida heredada si está
+  redirigida; si no, se adjunta a la consola del padre; si no hay, la descarta.
+- La prueba de humo la corre `construir.py --humo` (con `subprocess`, que espera también a un
+  ejecutable sin consola en Windows) y agrega una exportación a PDF para comprobar Qt dentro del
+  paquete.
+- **macOS Intel:** la especificación pide `macos-13`, imagen que GitHub ya retiró; se usa
+  `macos-15-intel`.
+- La versión del paquete es `0.9.0rc1` (forma PEP 440 de la etiqueta `v0.9.0-rc1`); el flujo
+  comprueba que coincidan. Las etiquetas con guion se publican como *pre-release*.
+- `workflow_dispatch` permite construir y probar sin publicar.
+

@@ -278,9 +278,12 @@ def test_recientes_y_geometria(
     # (si no, cada sistema lo recorta distinto al restaurar) y se compara con el tamaño real.
     # Además debe caber en la pantalla (la de macOS en CI es baja).
     minimo = ventana.minimumSizeHint().expandedTo(ventana.minimumSize())
-    marco = ventana.frameGeometry().height() - ventana.height()
-    alto_libre = ventana.screen().availableGeometry().height() - marco - 10
-    ventana.resize(max(780, minimo.width() + 40), min(max(520, minimo.height() + 40), alto_libre))
+    libre = ventana.screen().availableGeometry()
+    ancho_libre = libre.width() - (ventana.frameGeometry().width() - ventana.width()) - 10
+    alto_libre = libre.height() - (ventana.frameGeometry().height() - ventana.height()) - 10
+    assert minimo.width() <= ancho_libre and minimo.height() <= alto_libre
+    ventana.resize(min(max(780, minimo.width() + 40), ancho_libre),
+                   min(max(520, minimo.height() + 40), alto_libre))  # fmt: skip
     tamano = (ventana.width(), ventana.height())
     assert ventana.close()
     from pruebas.gui_utiles import DialogosFalsos

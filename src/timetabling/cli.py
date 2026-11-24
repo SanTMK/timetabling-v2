@@ -111,7 +111,7 @@ def generar(
     ] = None,
     hilos: Annotated[int | None, typer.Option("--hilos", help="Hilos del solver.")] = None,
     exportar_a: Annotated[
-        Path | None, typer.Option("--exportar", help="Exporta el horario (.xlsx).")
+        Path | None, typer.Option("--exportar", help="Exporta el horario (.xlsx o .pdf).")
     ] = None,
 ) -> None:
     """Genera un horario y lo guarda en el proyecto. Código 1 si no hay horario."""
@@ -224,9 +224,9 @@ def _exportar(proyecto: Path, solucion_id: int, salida: Path) -> None:
 def exportar(
     proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
     solucion: Annotated[int, typer.Option("--solucion", help="Id de la solución.")],
-    salida: Annotated[Path, typer.Option("--salida", help="Archivo .xlsx de salida.")],
+    salida: Annotated[Path, typer.Option("--salida", help="Archivo .xlsx o .pdf de salida.")],
 ) -> None:
-    """Exporta una solución guardada a Excel."""
+    """Exporta una solución guardada a Excel o PDF."""
     _exportar(proyecto, solucion, salida)
 
 

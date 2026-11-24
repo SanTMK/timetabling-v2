@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from timetabling import __version__
 from timetabling.gui.asistentes import AsistenteHorarios, AsistenteMaestros, AsistenteV6
 from timetabling.gui.dialogos import Dialogos
+from timetabling.gui.icono import icono
 from timetabling.gui.pantallas.asignaturas import PantallaAsignaturas
 from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.pantallas.clases import PantallaClases
@@ -412,6 +413,7 @@ def ejecutar(ruta: Path | None = None) -> int:
     aplicacion = QApplication.instance() or QApplication(sys.argv)
     aplicacion.setApplicationName("Timetabling")
     aplicacion.setOrganizationName("Timetabling")
+    aplicacion.setWindowIcon(icono())  # type: ignore[union-attr]
     ventana = VentanaPrincipal()
     ventana.show()
     if ruta is not None:

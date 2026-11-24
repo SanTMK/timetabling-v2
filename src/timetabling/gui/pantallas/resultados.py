@@ -95,8 +95,8 @@ class PantallaResultados(Pantalla):
         self.boton_cambios.toggled.connect(lambda _: self._elegir())
         self.boton_excel = QPushButton("Exportar a E&xcel…")
         self.boton_pdf = QPushButton("Exportar a &PDF…")
-        self.boton_pdf.setEnabled(False)
-        self.boton_pdf.setToolTip("Disponible en una próxima versión (F12).")
+        self.boton_pdf.setToolTip("Una página por grupo y por profesor (elija cuáles).")
+        self.boton_pdf.clicked.connect(lambda: self.exportar_pdf())
         self.boton_vigente.clicked.connect(self.marcar_vigente)
         self.boton_eliminar.clicked.connect(self.eliminar)
         self.boton_excel.clicked.connect(lambda: self.exportar_excel())
@@ -342,6 +342,32 @@ class PantallaResultados(Pantalla):
             self.dialogos.error("Exportar a Excel", str(error))
             return
         self.dialogos.informar("Exportar a Excel", f"Se exportó a «{ruta}».")
+
+    def exportar_pdf(self) -> None:
+        if self.solucion is None:
+            return
+        disposicion = Disposicion(self.solucion, self.sesion.datos)
+        opciones: list[tuple[object, str]] = [
+            *[(("grupo", g), f"Grupo {g}") for g in disposicion.grupos()],
+            *[(("profesor", p), f"Profesor {p}") for p in disposicion.profesores()],
+        ]
+        elegidos = self.dialogos.elegir_varios(
+            "Exportar a PDF", "Páginas a incluir (una por grupo o profesor):", opciones,
+            [v for v, _ in opciones],
+        )  # fmt: skip
+        if not elegidos:
+            return
+        ruta = self.dialogos.ruta_guardar("Exportar a PDF", "Documento PDF (*.pdf)", ".pdf")
+        if ruta is None:
+            return
+        grupos = [n for t, n in elegidos if t == "grupo"]  # type: ignore[misc]
+        profesores = [n for t, n in elegidos if t == "profesor"]  # type: ignore[misc]
+        try:
+            _, paginas = self.sesion.exportar_pdf(self.solucion, ruta, grupos, profesores)
+        except (OSError, ValueError) as error:
+            self.dialogos.error("Exportar a PDF", str(error))
+            return
+        self.dialogos.informar("Exportar a PDF", f"Se exportaron {paginas} páginas a «{ruta}».")
 
     def poner_solo_lectura(self, solo_lectura: bool) -> None:
         """Resultados sigue activa mientras se resuelve."""

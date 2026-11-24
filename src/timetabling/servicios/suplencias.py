@@ -300,6 +300,13 @@ class Suplencias:
             for a in self.ausencias_de(fecha)
             if a.profesor_id in profesores
         ]
+        escuela = datos.configuracion.nombre_escuela
+        if Path(ruta).suffix.lower() == ".pdf":
+            from timetabling.exportacion.pdf import exportar_suplencias_del_dia_pdf
+
+            return exportar_suplencias_del_dia_pdf(
+                escuela, fecha, self.reporte_del_dia(fecha), motivos, ruta
+            )
         return exportar_suplencias_del_dia(
-            datos.configuracion.nombre_escuela, fecha, self.reporte_del_dia(fecha), motivos, ruta
+            escuela, fecha, self.reporte_del_dia(fecha), motivos, ruta
         )

@@ -1,7 +1,7 @@
 """Creado con Claude.
 
-Caso de uso «Exportar»: abre el proyecto, carga la solución y la escribe en Excel (el PDF llega
-en F12).
+Caso de uso «Exportar»: abre el proyecto, carga la solución y la escribe en Excel o PDF (según
+la extensión de la salida; el PDF lleva una página por grupo y por profesor).
 """
 
 from pathlib import Path
@@ -18,9 +18,7 @@ class ErrorExportacion(ErrorProyecto):
 def exportar(proyecto: Path | str, solucion_id: int, salida: Path | str) -> Path:
     salida = Path(salida)
     sufijo = salida.suffix.lower()
-    if sufijo == ".pdf":
-        raise ErrorExportacion("La exportación a PDF llegará en una próxima versión (F12).")
-    if sufijo != ".xlsx":
+    if sufijo not in (".xlsx", ".pdf"):
         raise ErrorExportacion("La salida debe terminar en .xlsx (o .pdf).")
     with Repositorio.abrir(proyecto, respaldo_diario=False) as repo:
         try:
@@ -28,4 +26,8 @@ def exportar(proyecto: Path | str, solucion_id: int, salida: Path | str) -> Path
         except KeyError as error:
             raise ErrorExportacion(f"No existe la solución {solucion_id}.") from error
         datos = repo.cargar_datos()
+    if sufijo == ".pdf":
+        from timetabling.exportacion.pdf import exportar_pdf
+
+        return exportar_pdf(datos, solucion, salida)[0]
     return exportar_excel(datos, solucion, salida)

@@ -193,9 +193,15 @@ class PantallaSuplencias(Pantalla):
         capa_dia.addLayout(acciones)
         exportar = QHBoxLayout()
         exportar.addStretch()
-        self.boton_exportar = QPushButton("&Exportar el día a Excel…")
-        self.boton_exportar.clicked.connect(self.exportar)
+        exportar.addWidget(QLabel("Exportar el día:"))
+        self.boton_exportar = QPushButton("&Excel…")
+        self.boton_exportar.setToolTip("Reporte «Suplencias del día» en Excel (una hoja).")
+        self.boton_exportar.clicked.connect(lambda: self.exportar())
+        self.boton_exportar_pdf = QPushButton("P&DF…")
+        self.boton_exportar_pdf.setToolTip("Reporte «Suplencias del día» en PDF (una página).")
+        self.boton_exportar_pdf.clicked.connect(lambda: self.exportar("pdf"))
         exportar.addWidget(self.boton_exportar)
+        exportar.addWidget(self.boton_exportar_pdf)
         capa_dia.addLayout(exportar)
         self.pestanas.addTab(dia, "Clases del día")
 
@@ -248,6 +254,7 @@ class PantallaSuplencias(Pantalla):
         self.boton_quitar.setEnabled(clase is not None and clase.suplencia is not None)
         self.boton_registrar.setEnabled(hay)
         self.boton_exportar.setEnabled(hay)
+        self.boton_exportar_pdf.setEnabled(hay)
         self.boton_eliminar_ausencia.setEnabled(self.ausencias.currentRow() >= 0)
 
     # ------------------------------------------------------------------ carga
@@ -483,10 +490,9 @@ class PantallaSuplencias(Pantalla):
         self._llenar_tabla(seleccionar=clase.asignacion_id)
         self._llenar_conteo()
 
-    def exportar(self) -> None:
-        ruta = self.dialogos.ruta_guardar(
-            "Exportar suplencias del día", "Libro de Excel (*.xlsx)", ".xlsx"
-        )
+    def exportar(self, formato: str = "xlsx") -> None:
+        filtro = "Documento PDF (*.pdf)" if formato == "pdf" else "Libro de Excel (*.xlsx)"
+        ruta = self.dialogos.ruta_guardar("Exportar suplencias del día", filtro, f".{formato}")
         if ruta is None:
             return
         try:

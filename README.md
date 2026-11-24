@@ -23,7 +23,7 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F9 Reajuste y comparación | ✔ Reajustar el vigente con cambios mínimos, mapeo por traslape, comparación por asignación mínima, hoja Cambios |
 | F10 Suplencias | ✔ Ausencias (completas o parciales), clases afectadas del vigente, candidatos en orden, «sin cubrir», conteo mensual y reporte del día en Excel |
 | F11 Importación | ✔ Asistentes para el cuadro de horarios, el cuadro de maestros (con horarios como borrador) y proyectos v6; alias y mapeo editables; todo en una transacción con respaldo |
-| F12 | Pendiente |
+| F12 PDF y distribución | ✔ PDF (una página por grupo o profesor, y el reporte de suplencias del día); ejecutables para Windows y macOS con prueba de humo; release de prueba `v0.9.0-rc1` |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -50,11 +50,28 @@ Lo que ya funciona:
   resuelve conservando lo más posible del horario vigente; Resultados muestra cuántas clases y
   profesores cambian, la pestaña «Cambios» y «Resaltar cambios» (↻). Un horario hecho con otra
   configuración de niveles se ajusta por traslape.
-- `timetabling exportar P.horario --solucion ID --salida horario.xlsx` y
-  `timetabling generar P.horario --exportar horario.xlsx` escriben el libro de Excel.
+- `timetabling exportar P.horario --solucion ID --salida horario.xlsx|horario.pdf` y
+  `timetabling generar P.horario --exportar horario.xlsx|horario.pdf` escriben el libro de
+  Excel o el PDF (carta horizontal, una página por grupo y por profesor). En Resultados,
+  «Exportar a PDF…» deja elegir qué páginas incluir.
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
   `P.horario.lock` y, si la carpeta está sincronizada (OneDrive, Dropbox…), un aviso.
 - La suite de pruebas bloquea la red en ejecución y verifica las cabeceras «Creado con Claude.».
+
+## Instalación (ejecutables)
+
+En [Releases](../../releases) hay un `.zip` por sistema: Windows (x64), macOS Apple (arm64) y
+macOS Intel (x64). Se descomprime y se abre; no hace falta instalar Python.
+
+Los ejecutables **no tienen firma de código** (queda como mejora futura), así que el sistema
+avisa la primera vez:
+- **macOS:** clic derecho sobre `timetabling.app` → **Abrir** → **Abrir**. Si dice que «está
+  dañado», en Terminal: `xattr -dr com.apple.quarantine timetabling.app`.
+- **Windows:** en el aviso de SmartScreen, **Más información** → **Ejecutar de todas formas**.
+
+El mismo ejecutable acepta los subcomandos de la línea de comandos, por ejemplo
+`timetabling.exe generar escuela.horario` (en Windows, la salida va a la consola desde la que
+se llamó o a la redirección).
 
 ## Requisitos de desarrollo
 
@@ -158,3 +175,15 @@ uv run timetabling importar-v6 pruebas/datos/proyecto_v6.horario nuevo.horario
 `.github/workflows/ci.yml` ejecuta `ruff` y las pruebas rápidas en Windows, macOS y Linux
 (`QT_QPA_PLATFORM=offscreen` en Linux) en cada push, y las pruebas lentas y de rendimiento en
 Windows.
+
+`.github/workflows/release.yml`, al subir una etiqueta `v*`, construye con
+`empaquetado/construir.py` (PyInstaller *onedir*, sin consola, con el ícono dibujado con Qt)
+en Windows, macOS arm64 y macOS Intel, corre la **prueba de humo** sobre el ejecutable
+empaquetado (`--version`, `ejemplo`, `generar --tiempo-limite 30` y una exportación a PDF) y
+publica los tres `.zip`. Se puede lanzar a mano (sin publicar) para probar antes de etiquetar.
+
+Para construir en local:
+
+```bash
+uv run python empaquetado/construir.py --humo
+```

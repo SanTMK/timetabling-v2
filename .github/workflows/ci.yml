@@ -27,7 +27,7 @@ jobs:
       - name: Instalar
         run: uv sync --locked
       - name: Ruff
-        run: uv run ruff check src pruebas
+        run: uv run ruff check src pruebas empaquetado
       - name: Pruebas rápidas
         shell: bash
         # Límite propio del paso: si algo se cuelga, el paso falla (no se cancela el trabajo) y
