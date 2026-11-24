@@ -57,6 +57,11 @@ class Contexto(QObject):
             sesion.suscribir(self.sesion_cambiada.emit)
         self.sesion_cambiada.emit()
 
+    def poner_solo_lectura(self, solo_lectura: bool) -> None:
+        """Mientras se resuelve, las pantallas de captura no se pueden editar (sí navegar)."""
+        self.solo_lectura = solo_lectura
+        self.solo_lectura_cambiada.emit(solo_lectura)
+
     def ir_a(self, pantalla: str, entidad: str = "", ident: object = None) -> None:
         self.navegar.emit(pantalla, entidad, ident)
 
@@ -152,6 +157,7 @@ class Pantalla(QWidget):
 
     def poner_solo_lectura(self, solo_lectura: bool) -> None:
         self.setEnabled(not solo_lectura or not self.requiere_proyecto)
+        self.setToolTip("Solo lectura mientras se genera el horario." if solo_lectura else "")
 
 
 class Formulario(QWidget):

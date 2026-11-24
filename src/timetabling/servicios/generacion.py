@@ -79,6 +79,33 @@ def resolver_y_armar(
     return resultado, solucion
 
 
+def generar_en_memoria(
+    datos: DatosEscuela,
+    opciones: OpcionesResolucion,
+    al_progresar: Callable[[Progreso], None] | None = None,
+    resolutor: Resolutor | None = None,
+    diagnostico_s: float = 60.0,
+) -> ResultadoGeneracion:
+    """Resuelve, verifica, arma la `Solucion` (sin guardarla) y, si es infactible, diagnostica.
+    No toca archivos: la interfaz lo ejecuta en otro hilo con una copia de los datos."""
+    resultado, solucion = resolver_y_armar(datos, opciones, al_progresar, resolutor)
+    diagnostico = None
+    if resultado.estado is EstadoSolucion.INFACTIBLE and diagnostico_s > 0:
+        if al_progresar:
+            al_progresar(Progreso("diagnostico", 0, None, None, resultado.tiempo_s))
+        diagnostico = diagnosticar(datos, total_s=diagnostico_s)
+    return ResultadoGeneracion(resultado, solucion, [], diagnostico)
+
+
+def opciones_de(datos: DatosEscuela, tiempo_limite_s: float | None = None,
+                hilos: int | None = None) -> OpcionesResolucion:  # fmt: skip
+    configuracion = datos.configuracion
+    return OpcionesResolucion(
+        tiempo_limite_s=tiempo_limite_s or configuracion.tiempo_limite_s,
+        hilos=hilos or configuracion.hilos,
+    )
+
+
 def generar(
     ruta: Path | str,
     tiempo_limite_s: float | None = None,
@@ -93,20 +120,12 @@ def generar(
     problemas = validar(datos)
     if hay_errores(problemas):
         raise ErrorValidacion(problemas)
-    configuracion = datos.configuracion
-    opciones = OpcionesResolucion(
-        tiempo_limite_s=tiempo_limite_s or configuracion.tiempo_limite_s,
-        hilos=hilos or configuracion.hilos,
-    )
-    resultado, solucion = resolver_y_armar(datos.model_copy(deep=True), opciones, al_progresar)
-    diagnostico = None
-    if resultado.estado is EstadoSolucion.INFACTIBLE and diagnostico_s > 0:
-        if al_progresar:
-            al_progresar(Progreso("diagnostico", 0, None, None, resultado.tiempo_s))
-        diagnostico = diagnosticar(datos, total_s=diagnostico_s)
-    guardada = None
-    if solucion is not None:
+    resultado = generar_en_memoria(
+        datos.model_copy(deep=True), opciones_de(datos, tiempo_limite_s, hilos), al_progresar,
+        diagnostico_s=diagnostico_s,
+    )  # fmt: skip
+    if resultado.solucion is not None:
         with Repositorio.abrir(ruta, respaldo_diario=False) as repo:
-            guardada = repo.guardar_solucion(solucion)
-    advertencias = [p for p in problemas if not p.es_error]
-    return ResultadoGeneracion(resultado, guardada, advertencias, diagnostico)
+            resultado.solucion = repo.guardar_solucion(resultado.solucion)
+    resultado.advertencias = [p for p in problemas if not p.es_error]
+    return resultado

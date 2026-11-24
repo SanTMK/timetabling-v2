@@ -81,6 +81,9 @@ class PantallaValidacion(Pantalla):
             self.tabla.setItem(i, 2, QTableWidgetItem(problema.accion))
         self.tabla.resizeRowsToContents()
 
+    def poner_solo_lectura(self, solo_lectura: bool) -> None:
+        """Validación sigue activa mientras se resuelve."""
+
     def navegar(self, fila: int) -> None:
         if not 0 <= fila < len(self.problemas):
             return

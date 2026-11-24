@@ -349,3 +349,43 @@ Formato: fecha · contexto · decisión · alternativa descartada.
 ### 2026-11-23 · «Importar proyecto anterior…»
 - **Decisión:** el menú existe pero queda desactivado hasta F11. Abrir un archivo v6 avisa que
   debe importarse.
+
+## F7 Generar y Resultados
+
+### 2026-11-24 · Disposición desde la solución guardada
+- **Decisión:** `dominio/cuadricula.py` arma las cuadrículas desde la `Solucion` guardada (sus
+  franjas y copias desnormalizadas). Los grupos de cada clase salen de los datos actuales si la
+  clase existe; si se borró, del texto guardado («7°A, 7°B», «8°A (Básico)»). Así una solución
+  desactualizada o con entidades borradas sigue legible.
+- Las filas de los recesos se deducen de los huecos entre franjas consecutivas guardadas.
+- Varias clases en la misma celda (partes de una división) van una por línea:
+  «Inglés (Básico) · Wendy Park».
+- Profesor multinivel: filas de Δ minutos (mcd de los límites de sus niveles, mínimo 5) con
+  celdas combinadas según la duración real; en Excel y en la interfaz se rotula cada media hora.
+
+### 2026-11-24 · Carga docente
+- **Decisión:** minutos de hueco = minutos entre la primera y la última clase del día que no son
+  clase ni receso de un nivel en el que el profesor da clase ese día (como B1).
+
+### 2026-11-24 · Hojas de Excel
+- **Decisión:** las hojas de grupo y profesor se nombran con el nombre visible; las de espacio,
+  «tipo - Nivel». La hoja `Cambios` solo aparece si se pasan cambios (los calcula el reajuste,
+  F9). El encabezado usa `&A` (nombre de la hoja) y el pie la fecha de exportación.
+- **Nota:** XlsxWriter no escribe `fitToWidth`/`fitToHeight` cuando valen 1 (es el valor por
+  defecto de OOXML); el ajuste a una página queda activado con `fitToPage`.
+
+### 2026-11-24 · Exportar a PDF y botones de fases siguientes
+- **Decisión:** «Exportar a PDF», «Editar una copia», «Resaltar cambios» y «Reajustar vigente»
+  aparecen desactivados con una nota de la fase en que llegan (F12, F8, F9). La línea de
+  comandos responde con un error claro si se pide `.pdf`.
+
+### 2026-11-24 · Generación en segundo plano
+- **Decisión:** `gui/trabajador.py` resuelve en un `QThread` con una copia de los datos
+  (`servicios.generacion.generar_en_memoria`) y la solución se guarda en el hilo de la
+  interfaz. `terminado` detiene el hilo con conexión directa: al cerrar la ventana, el hilo de
+  la interfaz espera al trabajador y una conexión en cola se bloquearía hasta el tiempo límite.
+  El diagnóstico desde la interfaz usa 30 s (§11.3).
+- Mientras se resuelve, las pantallas de captura quedan desactivadas (se puede navegar);
+  Validación, Generar, Resultados e Inicio siguen activas, y no se puede abrir otro proyecto.
+- Las asignaciones fijas solo vienen de los datos hasta F8 (luego también de las clases
+  bloqueadas del editor).

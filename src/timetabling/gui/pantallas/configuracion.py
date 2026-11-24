@@ -18,9 +18,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from timetabling.dominio.modelos import CRITERIOS, PERFILES, Configuracion, Criterios
+from timetabling.dominio.modelos import (
+    CRITERIOS,
+    NOMBRES_CRITERIOS,
+    PERFILES,
+    Configuracion,
+    Criterios,
+)
 from timetabling.gui.pantallas.base import Contexto, Formulario, Pantalla, guardar_con_errores
-from timetabling.nucleo.objetivo import NOMBRES_CRITERIOS
 
 PERFILES_TEXTO = {
     "equilibrado": "Equilibrado",

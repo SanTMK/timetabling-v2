@@ -75,6 +75,19 @@ MULTIPLICADORES: dict[Prioridad, int] = {
 }
 MULTIPLICADOR_B9 = 64
 
+NOMBRES_CRITERIOS: dict[str, str] = {
+    "B1": "Huecos de profesores",
+    "B2": "Mala distribución semanal",
+    "B3": "Fuera de las franjas preferidas",
+    "B4": "Franjas «preferible no» de profesores",
+    "B5": "Días con clase por profesor",
+    "B6": "Desequilibrio de carga",
+    "B7": "Grupos sin su titular",
+    "B8": "Bloque doble preferido no logrado",
+    "B9": "Cambios respecto a la base",
+    "B10": "Huecos de alumnos",
+}
+
 PERFILES: dict[Perfil, dict[Criterio, Prioridad]] = {
     "equilibrado": {
         "B1": "alta", "B2": "alta", "B3": "media", "B4": "media", "B5": "baja",

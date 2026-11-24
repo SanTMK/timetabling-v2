@@ -110,9 +110,12 @@ def generar(
         typer.Option("--tiempo-limite", help="Segundos (por defecto, los del proyecto)."),
     ] = None,
     hilos: Annotated[int | None, typer.Option("--hilos", help="Hilos del solver.")] = None,
+    exportar_a: Annotated[
+        Path | None, typer.Option("--exportar", help="Exporta el horario (.xlsx).")
+    ] = None,
 ) -> None:
     """Genera un horario y lo guarda en el proyecto. Código 1 si no hay horario."""
-    from timetabling.nucleo.objetivo import NOMBRES_CRITERIOS
+    from timetabling.dominio.modelos import NOMBRES_CRITERIOS
     from timetabling.nucleo.resolver import Progreso
     from timetabling.persistencia.migraciones import ErrorProyecto
     from timetabling.servicios.generacion import ErrorValidacion
@@ -157,9 +160,33 @@ def generar(
     for criterio, nombre in NOMBRES_CRITERIOS.items():
         if criterio in solucion.penalizaciones:
             typer.echo(f"  {criterio} {nombre}: {solucion.penalizaciones[criterio]:g}")
+    if exportar_a is not None and solucion.id is not None:
+        _exportar(proyecto, solucion.id, exportar_a)
     if solucion.violaciones:
         typer.echo(f"⚠ El verificador encontró {len(solucion.violaciones)} violaciones.")
         raise typer.Exit(1)
+
+
+def _exportar(proyecto: Path, solucion_id: int, salida: Path) -> None:
+    from timetabling.persistencia.migraciones import ErrorProyecto
+    from timetabling.servicios.exportacion import exportar as exportar_solucion
+
+    try:
+        ruta = exportar_solucion(proyecto, solucion_id, salida)
+    except (ErrorProyecto, FileNotFoundError, OSError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+    typer.echo(f"Exportado a «{ruta}».")
+
+
+@app.command()
+def exportar(
+    proyecto: Annotated[Path, typer.Argument(help="Archivo .horario.")],
+    solucion: Annotated[int, typer.Option("--solucion", help="Id de la solución.")],
+    salida: Annotated[Path, typer.Option("--salida", help="Archivo .xlsx de salida.")],
+) -> None:
+    """Exporta una solución guardada a Excel."""
+    _exportar(proyecto, solucion, salida)
 
 
 def principal() -> None:

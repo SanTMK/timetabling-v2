@@ -71,6 +71,13 @@ class Dialogos:
         ruta, _ = QFileDialog.getOpenFileName(self.padre, titulo, "", FILTRO)
         return Path(ruta) if ruta else None
 
+    def ruta_guardar(self, titulo: str, filtro: str, sufijo: str) -> Path | None:
+        ruta, _ = QFileDialog.getSaveFileName(self.padre, titulo, "", filtro)
+        if not ruta:
+            return None
+        destino = Path(ruta)
+        return destino if destino.suffix == sufijo else destino.with_suffix(sufijo)
+
     def texto(self, titulo: str, etiqueta: str, valor: str = "") -> str | None:
         texto, ok = QInputDialog.getText(self.padre, titulo, etiqueta, text=valor)
         return texto if ok else None

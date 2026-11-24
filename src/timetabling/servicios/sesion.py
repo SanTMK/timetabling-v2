@@ -26,8 +26,10 @@ from timetabling.dominio.modelos import (
     Grupo,
     PlanEstudios,
     Profesor,
+    Solucion,
     por_id,
 )
+from timetabling.exportacion.excel import exportar_excel
 from timetabling.nucleo.franjas import Calendario
 from timetabling.nucleo.validacion import Problema, validar
 from timetabling.persistencia.archivo import Aviso
@@ -285,6 +287,40 @@ class SesionProyecto:
         libre = clase.model_copy(update={"profesores": []})
         ids = set(profesores_posibles(self.datos, libre))
         return [p for p in self.datos.profesores if p.id in ids]
+
+    # ------------------------------------------------------------------ soluciones
+
+    def soluciones(self) -> list[ResumenSolucion]:
+        return self.repo.listar_soluciones()
+
+    def cargar_solucion(self, ident: int) -> Solucion:
+        return self.repo.cargar_solucion(ident)
+
+    def guardar_solucion(self, solucion: Solucion) -> Solucion:
+        guardada = self.repo.guardar_solucion(solucion)
+        self._cambio()
+        return guardada
+
+    def marcar_vigente(self, ident: int | None) -> None:
+        self.repo.marcar_vigente(ident)
+        self._cambio()
+
+    def eliminar_solucion(self, ident: int) -> None:
+        self.repo.eliminar_solucion(ident)
+        self._cambio()
+
+    def desactualizada(self, solucion: ResumenSolucion | Solucion) -> bool:
+        return solucion.huella_niveles != self.datos.huella_niveles()
+
+    def exportar_excel(self, solucion: Solucion, ruta: Path | str) -> Path:
+        return exportar_excel(self.datos, solucion, ruta)
+
+    def origen_fijas(self) -> str:
+        """Texto para la pantalla Generar: cuántas asignaciones fijas hay y de dónde vienen."""
+        fijas = len(self.datos.fijas)
+        if not fijas:
+            return "No hay asignaciones fijas."
+        return f"{fijas} asignaciones fijas, capturadas en el proyecto."
 
     # ------------------------------------------------------------------ archivo
 

@@ -18,7 +18,8 @@ una escuela con preescolar, primaria y secundaria. La especificación completa e
 | F4 Objetivo | ✔ Criterios B1–B10 con prioridades y perfiles, etapa de optimización, `timetabling generar` |
 | F5 Diagnóstico | ✔ Núcleo de infactibilidad por familias y por entidad, con mensajes concretos |
 | F6 GUI de captura | ✔ Ventana principal, Inicio, Configuración, Niveles, Grados y grupos, Asignaturas, Plan, Clases, Profesores, Espacios, Validación |
-| F7–F12 | Pendientes |
+| F7 Generar y Resultados | ✔ Generar en segundo plano, Resultados con vistas por grupo, profesor y espacio, vigente, exportación a Excel |
+| F8–F12 | Pendientes |
 
 Lo que ya funciona:
 - `timetabling` (sin argumentos) abre la interfaz gráfica: se crea o abre un proyecto y se
@@ -34,6 +35,11 @@ Lo que ya funciona:
   con el verificador independiente y lo guarda en el proyecto con sus penalizaciones. Si no
   hay solución posible, explica el conflicto («El conflicto involucra los límites de carga de
   Ana y las 2 horas de Matemáticas de 1°A…»).
+- En la interfaz, «Generar» resuelve sin congelar la ventana (con fase, mejor penalización y
+  Cancelar) y «Resultados» muestra cada horario por grupo, profesor y espacio, sus
+  penalizaciones y la carga docente; desde ahí se marca el vigente y se exporta a Excel.
+- `timetabling exportar P.horario --solucion ID --salida horario.xlsx` y
+  `timetabling generar P.horario --exportar horario.xlsx` escriben el libro de Excel.
 - Al abrir un proyecto se crea un respaldo diario en `.respaldos/`, un archivo de bloqueo
   `P.horario.lock` y, si la carpeta está sincronizada (OneDrive, Dropbox…), un aviso.
 - La suite de pruebas bloquea la red en ejecución y verifica las cabeceras «Creado con Claude.».
@@ -85,6 +91,9 @@ uv run ruff check src pruebas
    cambiar de pantalla sin guardar y elija Guardar, Descartar o Cancelar.
 5. En Profesores, elija «Sara Kim» y arrastre sobre la cuadrícula de disponibilidad.
 6. En Validación, haga doble clic en un problema para ir al elemento.
+7. En Configuración ponga un tiempo límite de 30 s; en Generar pulse «Generar horario» y
+   observe la fase y la penalización; luego «Ver en Resultados», elija «8°A» y «Dora Montes»
+   (profesora de tres niveles), marque el horario como vigente y expórtelo a Excel.
 
 ## Integración continua
 

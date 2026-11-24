@@ -30,11 +30,13 @@ from timetabling.gui.pantallas.base import Contexto, Pantalla
 from timetabling.gui.pantallas.clases import PantallaClases
 from timetabling.gui.pantallas.configuracion import PantallaConfiguracion
 from timetabling.gui.pantallas.espacios import PantallaEspacios
+from timetabling.gui.pantallas.generar import PantallaGenerar
 from timetabling.gui.pantallas.grados import PantallaGrados
 from timetabling.gui.pantallas.inicio import PantallaInicio
 from timetabling.gui.pantallas.niveles import PantallaNiveles
 from timetabling.gui.pantallas.plan import PantallaPlan
 from timetabling.gui.pantallas.profesores import PantallaProfesores
+from timetabling.gui.pantallas.resultados import PantallaResultados
 from timetabling.gui.pantallas.validacion import PantallaValidacion
 from timetabling.persistencia.migraciones import ErrorProyecto, ErrorProyectoAnterior
 from timetabling.servicios.sesion import SesionProyecto
@@ -51,6 +53,8 @@ PANTALLAS: tuple[type[Pantalla], ...] = (
     PantallaProfesores,
     PantallaEspacios,
     PantallaValidacion,
+    PantallaGenerar,
+    PantallaResultados,
 )
 
 
@@ -107,6 +111,7 @@ class VentanaPrincipal(QMainWindow):
         self._indice_actual = 0
         self.barra.currentRowChanged.connect(self._cambiar_pantalla)
         self.contexto.navegar.connect(self.ir_a)
+        self.contexto.solo_lectura_cambiada.connect(self._solo_lectura)
         self.contexto.sesion_cambiada.connect(self._sesion_cambiada)
         inicio = self.pantallas["inicio"]
         assert isinstance(inicio, PantallaInicio)
@@ -190,8 +195,14 @@ class VentanaPrincipal(QMainWindow):
             else:
                 self.aviso.hide()
 
+    def _ocupado(self) -> bool:
+        if self.generando:
+            self.dialogos.informar("Generando", "Espere a que termine la generación o cancélela.")
+            return True
+        return False
+
     def nuevo_proyecto(self, ruta: Path | None = None) -> SesionProyecto | None:
-        if not self._confirmar_cambios():
+        if self._ocupado() or not self._confirmar_cambios():
             return None
         ruta = ruta or self.dialogos.ruta_nueva()
         if ruta is None:
@@ -206,7 +217,7 @@ class VentanaPrincipal(QMainWindow):
         return sesion
 
     def abrir_proyecto(self, ruta: Path | None = None) -> SesionProyecto | None:
-        if not self._confirmar_cambios():
+        if self._ocupado() or not self._confirmar_cambios():
             return None
         ruta = ruta or self.dialogos.ruta_existente()
         if ruta is None:
@@ -303,6 +314,18 @@ class VentanaPrincipal(QMainWindow):
             pantalla.seleccionar(entidad, ident)
         return pantalla
 
+    def _solo_lectura(self, solo_lectura: bool) -> None:
+        for pantalla in self.pantallas.values():
+            pantalla.poner_solo_lectura(solo_lectura)
+        for accion in (self.accion_guardar_como, self.accion_restaurar):
+            accion.setEnabled(not solo_lectura and self.contexto.sesion is not None)
+
+    @property
+    def generando(self) -> bool:
+        generar = self.pantallas["generar"]
+        assert isinstance(generar, PantallaGenerar)
+        return generar.trabajando
+
     def _actualizar_titulo(self, *_args: object) -> None:
         sesion = self.contexto.sesion
         cambios = any(p.hay_cambios() for p in self.pantallas.values())
@@ -324,6 +347,9 @@ class VentanaPrincipal(QMainWindow):
         if not self._confirmar_cambios():
             evento.ignore()
             return
+        generar = self.pantallas["generar"]
+        assert isinstance(generar, PantallaGenerar)
+        generar.detener_y_guardar()  # cancela, espera y guarda la mejor como CANCELADO
         self.preferencias.setValue("geometria", self.saveGeometry())
         self.preferencias.sync()
         if self.contexto.sesion is not None:

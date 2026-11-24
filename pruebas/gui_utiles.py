@@ -45,6 +45,10 @@ class DialogosFalsos(Dialogos):
     def ruta_existente(self, titulo: str = "Abrir proyecto") -> Path | None:
         return self._siguiente(None)
 
+    def ruta_guardar(self, titulo: str, filtro: str, sufijo: str) -> Path | None:
+        self.mostrados.append((titulo, filtro))
+        return self._siguiente(None)
+
     def texto(self, titulo: str, etiqueta: str, valor: str = "") -> str | None:
         self.mostrados.append((titulo, etiqueta))
         return self._siguiente(valor)

@@ -35,18 +35,6 @@ MINUTOS_UNIDAD = 50
 ESCALA_UNIDAD = 5000
 """Coeficiente entero de una unidad con peso 1 (permite pesos avanzados con dos decimales)."""
 
-NOMBRES_CRITERIOS: dict[str, str] = {
-    "B1": "Huecos de profesores",
-    "B2": "Mala distribución semanal",
-    "B3": "Fuera de las franjas preferidas",
-    "B4": "Franjas «preferible no» de profesores",
-    "B5": "Días con clase por profesor",
-    "B6": "Desequilibrio de carga",
-    "B7": "Grupos sin su titular",
-    "B8": "Bloque doble preferido no logrado",
-    "B9": "Cambios respecto a la base",
-    "B10": "Huecos de alumnos",
-}
 POR_MINUTO = frozenset({"B1", "B6"})
 
 
