@@ -14,6 +14,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     env:
       QT_QPA_PLATFORM: ${{ matrix.os == 'ubuntu-latest' && 'offscreen' || '' }}
       PYTHONUTF8: "1"
@@ -28,12 +29,13 @@ jobs:
       - name: Ruff
         run: uv run ruff check src pruebas
       - name: Pruebas rápidas
-        run: uv run pytest -m "not lento and not rendimiento"
+        run: uv run pytest -m "not lento and not rendimiento" --durations=10
 
   lentas:
     name: Lentas y rendimiento (Windows)
     needs: rapidas
     runs-on: windows-latest
+    timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
     steps:
